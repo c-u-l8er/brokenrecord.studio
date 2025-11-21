@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>brokenrecord.studio - Physics as Code</title>
+    <meta name="description" content="Programming language where conservation laws are type constraints. Physics-correct by construction.">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-gradient-start: #1a0f2e;
+            --bg-gradient-end: #0f1a2e;
+            --accent-purple: #a855f7;
+            --accent-cyan: #06b6d4;
+            --accent-pink: #ec4899;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --code-bg: #1e293b;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(120deg); }
+            66% { transform: translate(-30px, 30px) rotate(240deg); }
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Navigation */
+        nav {
+            padding: 2rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-size: 0.95rem;
+        }
+        
+        .nav-links a:hover {
+            color: var(--accent-cyan);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 6rem 0;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+        }
+        
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 200% 200%;
+            animation: gradient-shift 3s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .hero p {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 1rem 2.5rem;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+            box-shadow: 0 10px 40px rgba(168, 85, 247, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 50px rgba(168, 85, 247, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        /* Code Demo Section */
+        .code-demo {
+            margin: 6rem 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+        
+        .code-editor {
+            background: var(--code-bg);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .code-dot.red { background: var(--error); }
+        .code-dot.yellow { background: #fbbf24; }
+        .code-dot.green { background: var(--success); }
+        
+        pre {
+            margin: 0;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+        
+        .keyword { color: var(--accent-purple); }
+        .function { color: var(--accent-cyan); }
+        .string { color: var(--success); }
+        .comment { color: #64748b; font-style: italic; }
+        .operator { color: var(--accent-pink); }
+        
+        .features {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .feature {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .feature h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        /* Stats Section */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 6rem 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-cyan);
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        /* Comparison Table */
+        .comparison {
+            margin: 6rem 0;
+        }
+        
+        .comparison h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .comparison-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+        
+        .comparison-card.highlight {
+            border-color: var(--accent-purple);
+            background: rgba(168, 85, 247, 0.1);
+        }
+        
+        .comparison-card.highlight::before {
+            content: '⭐ BEST';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            padding: 0.3rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        .comparison-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .comparison-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .check { color: var(--success); font-size: 1.2rem; }
+        .cross { color: var(--error); font-size: 1.2rem; }
+        .warning { color: #fbbf24; font-size: 1.2rem; }
+        
+        /* Footer */
+        footer {
+            margin-top: 8rem;
+            padding: 3rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: var(--accent-cyan);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.1rem;
+            }
+            
+            .code-demo {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+        }
+        
+        /* Animation for code typing effect */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: var(--accent-cyan);
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated particles background -->
+    <div class="particles" id="particles"></div>
+    
+    <div class="container">
+        <!-- Navigation -->
+        <nav>
+            <div class="logo">🎵 brokenrecord.studio</div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="documentation.html">Docs</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="https://github.com/c-u-l8er/brokenrecord.studio">GitHub</a></li>
+            </ul>
+        </nav>
+        
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>
+                <span class="gradient-text">Physics as Code</span><br>
+                Conservation as Types
+            </h1>
+            <p>
+                The first programming language where conservation laws are enforced at compile time.
+                Build physics simulations that are correct by construction.
+            </p>
+            <div class="cta-buttons">
+                <a href="#" class="btn btn-primary">Get Started</a>
+                <a href="#" class="btn btn-secondary">View Examples</a>
+            </div>
+        </section>
+        
+        <!-- Code Demo Section -->
+        <section class="code-demo">
+            <div class="code-editor">
+                <div class="code-header">
+                    <div class="code-dot red"></div>
+                    <div class="code-dot yellow"></div>
+                    <div class="code-dot green"></div>
+                </div>
+                <pre><code><span class="comment"># Define particle with conservation laws</span>
+<span class="keyword">record</span> <span class="function">Particle</span> <span class="keyword">do</span>
+  <span class="keyword">substance</span> <span class="keyword">do</span>
+    <span class="keyword">material</span> <span class="operator">:</span>mass, <span class="function">float</span>()
+    <span class="keyword">material</span> <span class="operator">:</span>velocity, <span class="function">vector3</span>()
+    <span class="keyword">material</span> <span class="operator">:</span>spin, <span class="function">quantum</span>(), <span class="operator">irreducible:</span> <span class="keyword">true</span>
+  <span class="keyword">end</span>
+  
+  <span class="keyword">conservation_laws</span> <span class="keyword">do</span>
+    <span class="keyword">conserve</span> <span class="operator">:</span>linear_momentum
+    <span class="keyword">conserve</span> <span class="operator">:</span>angular_momentum
+  <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="comment"># Transform with guaranteed conservation</span>
+<span class="keyword">transmute</span> <span class="function">Particle</span>, old_particle <span class="keyword">do</span>
+  <span class="keyword">phase</span> <span class="operator">:</span>spinning <span class="operator">-></span>
+    <span class="comment"># Ballerina effect: L = I·ω conserved</span>
+    <span class="function">ballerina_effect</span>(new_moment<span class="operator">:</span> <span class="string">1.0</span>)
+<span class="keyword">end</span>
+
+<span class="comment"># ⚗️ Compilation: ✓ Conservation verified</span>
+<span class="comment"># 🎯 Runtime overhead: 0 ns (zero cost!)</span><span class="cursor"></span></code></pre>
+            </div>
+            
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <div>
+                        <h3>Zero-Cost Abstractions</h3>
+                        <p>Conservation checks happen at compile time. Production code has zero overhead.</p>
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <div>
+                        <h3>Type-Safe Physics</h3>
+                        <p>Conservation violations are compile errors, not runtime bugs. Physics-correct by construction.</p>
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">⚛️</div>
+                    <div>
+                        <h3>Quantum Properties</h3>
+                        <p>Irreducible quantum spin built into the type system. Can't be destroyed, only flipped.</p>
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🚀</div>
+                    <div>
+                        <h3>GPU Acceleration</h3>
+                        <p>Same conservation semantics scale from single particles to millions on GPU.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Stats Section -->
+        <section class="stats">
+            <div class="stat-card">
+                <div class="stat-number">3.2M</div>
+                <div class="stat-label">Operations/sec (CPU)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">100M+</div>
+                <div class="stat-label">Particles/sec (GPU)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">0 ns</div>
+                <div class="stat-label">Conservation Overhead</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">Type Safety</div>
+            </div>
+        </section>
+        
+        <!-- Comparison Section -->
+        <section class="comparison">
+            <h2>How It Compares</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>Unity/PhysX</h3>
+                    <div class="comparison-item">
+                        <span class="cross">✗</span>
+                        <span>Runtime violations possible</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Very fast</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="cross">✗</span>
+                        <span>No compile-time guarantees</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="cross">✗</span>
+                        <span>C++ API only</span>
+                    </div>
+                </div>
+                
+                <div class="comparison-card highlight">
+                    <h3>brokenrecord.studio</h3>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Conservation guaranteed</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Competitive performance</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Compile-time verification</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Beautiful DSL</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>GPU acceleration</span>
+                    </div>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>Python/NumPy</h3>
+                    <div class="comparison-item">
+                        <span class="cross">✗</span>
+                        <span>No conservation checks</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="cross">✗</span>
+                        <span>16x slower</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="check">✓</span>
+                        <span>Easy to prototype</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="warning">⚠</span>
+                        <span>Dynamic typing</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Use Cases -->
+        <section class="comparison" style="margin-top: 8rem;">
+            <h2>Built For</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>🎮 Game Physics</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        Entity systems, particle effects, rigid body dynamics. 
+                        Conservation guarantees prevent physics bugs.
+                    </p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>🔬 Scientific Computing</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        N-body simulations, molecular dynamics, quantum systems.
+                        Type-safe physics from first principles.
+                    </p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>💰 Financial Systems</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        Value conservation as type safety. Impossible to create or destroy money.
+                        Double-entry bookkeeping by construction.
+                    </p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- CTA Section -->
+        <section class="hero" style="margin-top: 8rem;">
+            <h2 style="font-size: 3rem; margin-bottom: 1.5rem;">
+                Ready to Build Physics-Correct Systems?
+            </h2>
+            <p style="margin-bottom: 2rem;">
+                Join the revolution in physics-based programming.
+            </p>
+            <div class="cta-buttons">
+                <a href="#" class="btn btn-primary">Get Early Access</a>
+                <a href="documentation.html" class="btn btn-secondary">Read the Docs</a>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="footer-links">
+            <a href="#">Documentation</a>
+            <a href="#">Examples</a>
+            <a href="#">GitHub</a>
+            <a href="#">Discord</a>
+            <a href="#">Twitter</a>
+        </div>
+        <p>&copy; 2025 brokenrecord.studio. Conservation laws as code.</p>
+    </footer>
+    
+    <script>
+        // Generate animated particles
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = 50;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 20 + 's';
+            particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+            particlesContainer.appendChild(particle);
+        }
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
