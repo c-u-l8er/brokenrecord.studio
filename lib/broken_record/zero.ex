@@ -156,6 +156,14 @@ defmodule BrokenRecord.Zero.DSL do
     {name, parsed_params}
   end
 
+  defp parse_signature({name, _, params}) when is_list(params) do
+    parsed_params = Enum.map(params, fn
+      {:::, _, [var, type]} -> {var, type}
+      var -> {var, :any}
+    end)
+    {name, parsed_params}
+  end
+
   defp parse_body(block), do: block
 end
 
@@ -197,7 +205,7 @@ defmodule BrokenRecord.Zero.Compiler do
     # Stage 4: Optimize IR
     IO.puts("\n[4/7] Optimizing...")
     optimized = Optimizer.optimize(typed_ir, opts[:optimize] || [])
-    IO.puts("      ✓ Applied #{length(optimized.applied_passes)} optimization passes")
+    IO.puts("      ✓ Applied #{length(optimized.metadata.applied_passes)} optimization passes")
 
     # Stage 5: Memory layout
     IO.puts("\n[5/7] Computing memory layout...")
@@ -895,7 +903,7 @@ defmodule BrokenRecord.Zero.Runtime do
     n = result.count
 
     particles = for i <- 0..(n - 1) do
-      %BrokenRecord.Particle{
+      %{
         id: "p#{i}",
         mass: get_float(result.mass, i),
         position: {
@@ -1001,7 +1009,7 @@ defmodule BrokenRecord.BenchmarkTest do
   test "particle system performance" do
     # Create initial state
     particles = for i <- 1..10_000 do
-      %BrokenRecord.Particle{
+      %{
         id: "p#{i}",
         mass: 1.0,
         position: {:rand.uniform() * 100, :rand.uniform() * 100, :rand.uniform() * 100},

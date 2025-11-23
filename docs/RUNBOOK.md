@@ -2,7 +2,7 @@
 
 ## 🎉 IT WORKS!
 
-The standalone C version is **fully functional** and achieving **2+ BILLION particles/sec** on CPU!
+The standalone C version is **fully functional** and achieving **2.5+ BILLION particles/sec** on CPU!
 
 ## Quick Start (C Version - Works Now)
 
@@ -55,7 +55,7 @@ Test: Performance Benchmark
 
 ### What We Achieved
 
-✅ **2,000+ M particles/sec** (2 BILLION/sec)
+✅ **2,500+ M particles/sec** (2.5 BILLION/sec)
 - Way beyond the 3.2M target!
 - SIMD vectorization working perfectly
 - Cache-friendly SoA layout

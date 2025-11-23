@@ -38,8 +38,8 @@ defmodule MyPhysics do
 
           if speed > 0 do
             impulse = (2 * speed) / (1/p1.mass + 1/p2.mass)
-            p1.velocity -= impulse * normal / p1.mass
-            p2.velocity += impulse * normal / p2.mass
+            p1.velocity = %{p1.velocity | x: p1.velocity.x - impulse * normal.x / p1.mass, y: p1.velocity.y - impulse * normal.y / p1.mass, z: p1.velocity.z - impulse * normal.z / p1.mass}
+            p2.velocity = %{p2.velocity | x: p2.velocity.x + impulse * normal.x / p2.mass, y: p2.velocity.y + impulse * normal.y / p2.mass, z: p2.velocity.z + impulse * normal.z / p2.mass}
           end
         end
       end
@@ -51,17 +51,17 @@ defmodule MyPhysics do
         if dist < p.radius do
           # Reflect velocity
           v_normal = dot(p.velocity, w.normal)
-          p.velocity -= 2 * v_normal * w.normal
+          p.velocity = %{p.velocity | x: p.velocity.x - 2 * v_normal * w.normal.x, y: p.velocity.y - 2 * v_normal * w.normal.y, z: p.velocity.z - 2 * v_normal * w.normal.z}
         end
       end
 
       # Time integration
       interaction integrate(p: Particle, dt: float) do
         # Simple Euler integration
-        p.position += p.velocity * dt
+        p.position = %{p.position | x: p.position.x + p.velocity.x * dt, y: p.position.y + p.velocity.y * dt, z: p.position.z + p.velocity.z * dt}
 
         # Apply gravity
-        p.velocity += vec3(0, 0, -9.81) * dt
+        p.velocity = %{p.velocity | x: p.velocity.x + 0 * dt, y: p.velocity.y + 0 * dt, z: p.velocity.z + (-9.81) * dt}
       end
     end
   end
