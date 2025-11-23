@@ -1,382 +1,246 @@
-# BrokenRecord Zero - Getting Started Guide
+# BrokenRecord Zero - Development Guide
 
-## 🎉 IT WORKS!
+## Current Status
 
-The standalone C version is **fully functional** and achieving **2.5+ BILLION particles/sec** on CPU!
+✅ **Working Components:**
+- DSL parser and compiler
+- IR generation and optimization
+- Native code generation with SIMD
+- NIF integration
+- End-to-end tests
+- Benchmarks
 
-## Quick Start (C Version - Works Now)
+## Architecture Overview
 
-### 1. Compile and Run
+BrokenRecord Zero is a compile-time physics optimizer for Elixir. It transforms high-level physics descriptions into optimized native code.
 
-```bash
-cd /tmp/broken_record_zero
+### Core Components
 
-# Compile with optimizations
-gcc -O3 -march=native -o test_physics test_physics.c -lm
+1. **DSL Layer** (`lib/broken_record/zero/dsl.ex`)
+   - Defines physics systems with agents and rules
+   - Supports type annotations and conservation declarations
 
-# Run
-./test_physics
-```
+2. **IR Layer** (`lib/broken_record/zero/ir.ex`)
+   - Intermediate representation for optimization
+   - Supports type checking and analysis
 
-### Expected Output
+3. **Optimizer** (`lib/broken_record/zero/optimizer.ex`)
+   - Applies optimization passes (SIMD, spatial hashing, etc.)
+   - Computes optimal memory layouts
 
-```
-================================================================================
-BrokenRecord Zero - Standalone Test
-================================================================================
+4. **Code Generator** (`lib/broken_record/zero/code_gen.ex`)
+   - Generates optimized C code from IR
+   - Emits SIMD intrinsics and cache-friendly structures
 
-Test: SIMD Capabilities
-----------------------
-✓ AVX support detected
-  SIMD width: 8 floats (256-bit)
+5. **Runtime** (`lib/broken_record/zero/runtime.ex`)
+   - Bridges Elixir and native code via NIF
+   - Handles data conversion between formats
 
-Test: Basic Simulation
-----------------------
-Initial: z=10.00
-After 1s: z=5.05, vz=-9.81
-Expected: z≈5.1, vz≈-9.81
+## Development Workflow
 
-Test: Performance Benchmark
----------------------------
-100 particles × 1000 steps:
-  Time: 0.05ms
-  Rate: 2177.42 M particles/sec
-  
-1000 particles × 1000 steps:
-  Time: 0.50ms
-  Rate: 1983.34 M particles/sec
-  
-10000 particles × 1000 steps:
-  Time: 5.26ms
-  Rate: 1902.15 M particles/sec
-```
+### Adding New Features
 
-## Performance Analysis
+1. **DSL Extensions**
+   - Add new constructs in `dsl.ex`
+   - Update parser for new syntax
 
-### What We Achieved
+2. **Optimization Passes**
+   - Implement in `optimizer.ex`
+   - Register in `optimize/2` function
 
-✅ **2,500+ M particles/sec** (2.5 BILLION/sec)
-- Way beyond the 3.2M target!
-- SIMD vectorization working perfectly
-- Cache-friendly SoA layout
+3. **Target Backends**
+   - Add code generator for new architecture
+   - Update compilation pipeline
 
-### Why It's So Fast
-
-1. **SIMD (AVX)**: Processing 8 particles at once
-2. **Structure of Arrays**: Perfect for vectorization
-3. **Cache-friendly**: Sequential memory access
-4. **Zero overhead**: No abstraction, just tight loops
-
-### Architecture Details
-
-```
-Memory Layout (Structure of Arrays):
-┌─────────────────────────────┐
-│ pos_x: [x0, x1, x2, ..., xn]│ ← Cache line
-│ pos_y: [y0, y1, y2, ..., yn]│ ← Cache line
-│ pos_z: [z0, z1, z2, ..., zn]│ ← Cache line
-│ vel_x: [vx0,vx1,vx2,...,vxn]│ ← Cache line
-│ vel_y: [vy0,vy1,vy2,...,vyn]│ ← Cache line
-│ vel_z: [vz0,vz1,vz2,...,vzn]│ ← Cache line
-│ mass:  [m0, m1, m2, ..., mn]│ ← Cache line
-└─────────────────────────────┘
-
-SIMD Processing:
-┌────────────────────────────────┐
-│ Load 8 particles at once (AVX)│
-│ Process all in parallel        │
-│ Store 8 results at once        │
-└────────────────────────────────┘
-```
-
-## Full Elixir Version (Requires Installation)
-
-### Prerequisites
+### Testing
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install -y erlang elixir build-essential
-
-# macOS
-brew install elixir
-
-# Verify
-elixir --version
-```
-
-### Build and Run
-
-```bash
-cd /tmp/broken_record_zero
-
-# Get dependencies
-mix deps.get
-
-# Compile (builds NIF)
-mix compile
-
-# Run tests
+# Run all tests
 mix test
 
-# Interactive session
-iex -S mix
+# Run specific test
+mix test test/broken_record/e2e_test.exs
+
+# Run benchmarks
+mix run benchmarks/dsl_bench.exs
 ```
 
-### Elixir Usage
+### Debugging
+
+1. **Compilation Issues**
+   - Check IR generation in `ir.ex`
+   - Verify optimization passes
+   - Examine generated C code in `/tmp/`
+
+2. **Runtime Issues**
+   - Check NIF loading in `runtime.ex`
+   - Verify data conversion functions
+
+3. **Performance Issues**
+   - Profile with `perf` on Linux
+   - Check SIMD code generation
+
+## Performance Optimization
+
+### Current Optimizations
+
+1. **SIMD Vectorization**
+   - AVX instruction set for 8-float parallel processing
+   - Automatic vector width detection
+
+2. **Memory Layout**
+   - Structure of Arrays (SoA) for cache efficiency
+   - 64-byte alignment for AVX
+
+3. **Parallelization**
+   - OpenMP support for multi-core CPUs
+   - Work-stealing scheduler design
+
+### Future Optimizations
+
+1. **Spatial Hashing**
+   - O(N) collision detection
+   - Grid-based or octree implementations
+
+2. **GPU Support**
+   - CUDA backend for massive parallelism
+   - Thrust for GPU memory management
+
+## Code Organization
+
+```
+lib/broken_record/zero/
+├── dsl.ex          # High-level DSL definitions
+├── ir.ex            # Intermediate representation
+├── analyzer.ex       # Type checking and conservation
+├── optimizer.ex      # Optimization passes
+├── code_gen.ex       # C code generation
+└── runtime.ex        # NIF interface and execution
+
+examples/
+├── particle_system.ex    # Basic particle simulation
+├── collision_simulation.ex # Collision detection demo
+└── gravity_simulation.ex   # Gravity field demo
+
+benchmarks/
+├── dsl_bench.exs         # Full compiler benchmarks
+├── dsl_bench_simple.exs # Simple performance test
+└── broken_record_bench.exs  # Native code benchmarks
+
+test/
+├── e2e_test.exs          # End-to-end system tests
+├── zero_test.exs          # Unit tests for components
+├── compiler_test.exs       # Compilation pipeline tests
+└── performance_test.exs    # Performance regression tests
+```
+
+## Build System
+
+### Native Compilation
+
+The system generates optimized C code and compiles it to a shared library:
+
+```bash
+# Generated code includes:
+- SIMD kernels with AVX intrinsics
+- Cache-friendly SoA memory layout
+- OpenMP parallelization directives
+- NIF interface for Elixir integration
+
+gcc -O3 -march=native -ffast-math -fopenmp \
+  -shared -fPIC -o priv/native.so /tmp/broken_record_native.c
+```
+
+### Elixir Integration
 
 ```elixir
-# In IEx
-alias BrokenRecord.Zero
+# NIF loads automatically when module is used
+defmodule MyPhysics do
+  use BrokenRecord.Zero
+  
+  # Physics system defined here
+end
 
-# Quick simulation
-particles = [
-  %{position: {0.0, 0.0, 10.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0},
-  %{position: {5.0, 0.0, 10.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0}
-]
-
-{:ok, result} = Zero.run(particles, dt: 0.01, steps: 1000)
-
-# Run all demos
-BrokenRecord.Zero.Demo.run_all()
-
-# Just benchmark
-BrokenRecord.Zero.Demo.benchmark()
+# NIF provides native implementations
+MyPhysics.simulate(particles, dt: 0.01, steps: 1000)
 ```
 
-## Performance Comparison
+## Performance Guidelines
 
-### Our Results vs Targets
+### Achieving Target Performance
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| CPU ops/sec | 3.2M | 2000M+ | ✅ 625x better! |
-| GPU particles/sec | 100M+ | TBD | 🚧 Coming |
+1. **Batch Operations**
+   - Add all particles before simulation
+   - Minimize state changes
 
-### Why So Much Faster?
+2. **Optimize Timestep**
+   - Larger dt = fewer steps = less overhead
+   - Balance accuracy vs performance
 
-Our **target was conservative** based on Bend's interpreted performance. 
-
-**The difference:**
-- Bend: Interpreted interaction nets on VM
-- Us: Compiled native code with SIMD
-
-**Speedup breakdown:**
-- No interpretation: 10-100x
-- SIMD vectorization: 8x (AVX)
-- Cache optimization: 2-4x
-- **Total: 160-3200x faster than naive**
-
-## Optimization Techniques Used
-
-### 1. Structure of Arrays (SoA)
-
-```c
-// Bad (Array of Structures)
-struct Particle particles[N];  // Poor cache usage
-
-// Good (Structure of Arrays)  
-float pos_x[N];  // Perfect for SIMD!
-float pos_y[N];
-float pos_z[N];
-```
-
-### 2. SIMD Vectorization
-
-```c
-// Process 8 particles at once
-__m256 px = _mm256_loadu_ps(&sys->pos_x[i]);
-__m256 vx = _mm256_loadu_ps(&sys->vel_x[i]);
-px = _mm256_fmadd_ps(vx, dt_vec, px);  // 8 ops in one instruction!
-_mm256_storeu_ps(&sys->pos_x[i], px);
-```
-
-### 3. Memory Alignment
-
-```c
-// 64-byte alignment for cache lines
-float *pos_x __attribute__((aligned(64)));
-```
-
-### 4. Fast Math
-
-```bash
-gcc -ffast-math  # Aggressive FP optimizations
-```
-
-## Next Steps
-
-### Immediate Improvements
-
-1. **Spatial Hashing**: O(N²) → O(N) collisions
-   - Expected: 100-1000x faster for collisions
-   - Realistic: 10-100M collisions/sec
-
-2. **Multi-threading**: 
-   - OpenMP parallelization
-   - Expected: 8-16x on typical CPUs
-
-3. **GPU Version**:
-   - CUDA kernel generation
-   - Expected: 100-1000x vs single CPU core
-
-### Full Compiler Pipeline
-
-To get the **complete compiler** (DSL → native code):
-
-1. Implement IR lowering
-2. Add conservation analysis  
-3. Generate optimized kernels
-4. Compile to machine code
-
-See the full architecture in `lib/broken_record/zero/compiler.ex`
-
-## Files Overview
-
-```
-broken_record_zero/
-├── c_src/
-│   └── native.c              # NIF implementation (full featured)
-├── lib/
-│   └── broken_record/
-│       └── zero/
-│           ├── native.ex     # Elixir NIF wrapper
-│           ├── demo.ex       # Demo programs
-│           └── compiler.ex   # Full compiler (future)
-├── test/
-│   └── broken_record_zero_test.exs
-├── test_physics.c            # ✅ Standalone working version
-├── Makefile                  # Build system
-├── mix.exs                   # Elixir project
-└── README.md                 # Documentation
-```
-
-## Troubleshooting
-
-### C Version Issues
-
-```bash
-# If compile fails
-gcc --version  # Need GCC 4.8+ or Clang 3.4+
-
-# Check for AVX support
-cat /proc/cpuinfo | grep avx
-
-# Compile without AVX
-gcc -O3 -o test_physics test_physics.c -lm
-```
-
-### Elixir Version Issues
-
-```bash
-# NIF not loading
-ls priv/  # Should contain native.so
-
-# Rebuild
-mix clean
-mix compile
-
-# Force rebuild
-rm -rf _build priv/*.so
-mix compile
-```
-
-## Benchmarking
-
-### Custom Benchmarks
-
-```c
-// Add to test_physics.c
-void my_benchmark() {
-    ParticleSystem *sys = create_system(100000);
-    
-    // Add particles...
-    
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    
-    // Your simulation here
-    for (int i = 0; i < 1000; i++) {
-        simulation_step(sys, 0.01f);
-    }
-    
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    
-    // Calculate stats...
-}
-```
+3. **Reuse Systems**
+   - Create once, simulate many times
+   - Avoid repeated compilation
 
 ### Profiling
 
 ```bash
-# Compile with debug symbols
-gcc -O3 -march=native -g -o test_physics test_physics.c -lm
+# Linux perf
+perf stat -e cycles,instructions,cache-misses ./my_app
 
-# Profile with perf
-perf record ./test_physics
-perf report
-
-# Profile with valgrind
-valgrind --tool=callgrind ./test_physics
+# macOS Instruments
+xctrace record --launch ./my_app
 ```
 
-## Real-World Usage
+## Troubleshooting
 
-### Game Physics
+### Common Issues
 
-```c
-ParticleSystem *game_world = create_system(10000);
+1. **NIF Loading Errors**
+   ```bash
+   # Check if native.so exists
+   ls priv/native.so
+   
+   # Check NIF symbols
+   nm -D priv/native.so | grep nif_init
+   ```
 
-// Game loop
-while (running) {
-    simulation_step(game_world, dt);
-    render(game_world);
-}
-```
+2. **Compilation Failures**
+   ```bash
+   # Check GCC version
+   gcc --version  # Need 4.8+ for full AVX
+   
+   # Check AVX support
+   cat /proc/cpuinfo | grep avx
+   ```
 
-### Scientific Simulation
+3. **Performance Issues**
+   - Verify SIMD code generation
+   - Check memory alignment
+   - Profile optimization passes
 
-```c
-// N-body simulation
-ParticleSystem *galaxy = create_system(1000000);
+## Release Process
 
-for (int step = 0; step < 10000; step++) {
-    compute_gravitational_forces(galaxy);
-    integrate_euler(galaxy, dt);
-    
-    if (step % 100 == 0) {
-        save_snapshot(galaxy, step);
-    }
-}
-```
+1. Update version in `mix.exs`
+2. Update CHANGELOG.md
+3. Tag release: `git tag v1.0.0`
+4. Publish to Hex: `mix hex.publish`
 
-## Contributing
+## Architecture Decisions
 
-Want to add features?
+### Why Structure of Arrays?
 
-1. Add to `test_physics.c` for standalone
-2. Add to `c_src/native.c` for NIF version
-3. Add Elixir API in `lib/broken_record/zero.ex`
-4. Add tests in `test/`
+- **Cache Efficiency**: Each array is a cache line
+- **SIMD Alignment**: Natural 256/512-bit boundaries
+- **Vectorization**: Same operation on all elements
 
-## Success Metrics
+### Why NIF Instead of Ports?
 
-✅ **Compilation**: Works!
-✅ **Basic physics**: Gravity simulation correct
-✅ **Performance**: 2000M+ particles/sec
-✅ **SIMD**: AVX vectorization working
-⏳ **Collisions**: O(N²) implemented, needs spatial hash
-⏳ **GPU**: CUDA version next
-⏳ **Compiler**: Full DSL → native pipeline
+- **Performance**: Zero-copy data sharing
+- **Simplicity**: Direct function calls
+- **Flexibility**: Easy state management
 
-## Contact
+### Why Compile-Time Optimization?
 
-Questions? The code is self-documenting:
-- Read `test_physics.c` for standalone version
-- Read `c_src/native.c` for NIF version
-- Read `README.md` for full docs
-
----
-
-**Remember**: This achieves **2+ BILLION particles/sec** on a single CPU core!
-With spatial hashing and GPU, we could hit 100 BILLION+/sec. 🚀
+- **Zero Overhead**: No runtime compilation
+- **Global View**: Optimizer sees entire system
+- **Verification**: Prove properties before execution

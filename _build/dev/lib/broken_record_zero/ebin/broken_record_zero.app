@@ -11,7 +11,8 @@
                         'Elixir.Examples.ParticleSystem',
                         'Elixir.Examples.ParticleSystem.GravitySimulation']},
               {optional_applications,[]},
-              {applications,[kernel,stdlib,elixir,logger]},
+              {applications,[kernel,stdlib,elixir,logger,runtime_tools,
+                             benchee,benchee_html,plug_cowboy,jason]},
               {description,"broken_record_zero"},
               {registered,[]},
               {vsn,"0.1.0"}]}.

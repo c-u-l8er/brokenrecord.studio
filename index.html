@@ -436,7 +436,7 @@
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="documentation.html">Docs</a></li>
-                <li><a href="#examples">Examples</a></li>
+                <li><a href="examples.html">Examples</a></li>
                 <li><a href="https://github.com/c-u-l8er/brokenrecord.studio">GitHub</a></li>
             </ul>
         </nav>
@@ -453,7 +453,7 @@
             </p>
             <div class="cta-buttons">
                 <a href="#" class="btn btn-primary">Get Started</a>
-                <a href="#" class="btn btn-secondary">View Examples</a>
+                <a href="examples.html" class="btn btn-secondary">View Examples</a>
             </div>
         </section>
         
@@ -466,26 +466,20 @@
                     <div class="code-dot green"></div>
                 </div>
                 <pre><code><span class="comment"># Define particle with conservation laws</span>
-<span class="keyword">record</span> <span class="function">Particle</span> <span class="keyword">do</span>
-  <span class="keyword">substance</span> <span class="keyword">do</span>
-    <span class="keyword">material</span> <span class="operator">:</span>mass, <span class="function">float</span>()
-    <span class="keyword">material</span> <span class="operator">:</span>velocity, <span class="function">vector3</span>()
-    <span class="keyword">material</span> <span class="operator">:</span>spin, <span class="function">quantum</span>(), <span class="operator">irreducible:</span> <span class="keyword">true</span>
-  <span class="keyword">end</span>
+<span class="keyword">defagent</span> <span class="function">Particle</span> <span class="keyword">do</span>
+  <span class="keyword">field</span> <span class="operator">:</span>position, <span class="operator">:</span>vec3
+  <span class="keyword">field</span> <span class="operator">:</span>velocity, <span class="operator">:</span>vec3
+  <span class="keyword">field</span> <span class="operator">:</span>mass, <span class="operator">:</span>float
+<span class="keyword">end</span>
   
-  <span class="keyword">conservation_laws</span> <span class="keyword">do</span>
-    <span class="keyword">conserve</span> <span class="operator">:</span>linear_momentum
-    <span class="keyword">conserve</span> <span class="operator">:</span>angular_momentum
-  <span class="keyword">end</span>
+<span class="keyword">interaction</span> <span class="function">gravity</span>(p<span class="operator">:</span>Particle, dt<span class="operator">:</span>float) <span class="keyword">do</span>
+  p.velocity = p.velocity + {0.0, -9.81 * dt, 0.0}
 <span class="keyword">end</span>
 
-<span class="comment"># Transform with guaranteed conservation</span>
-<span class="keyword">transmute</span> <span class="function">Particle</span>, old_particle <span class="keyword">do</span>
-  <span class="keyword">phase</span> <span class="operator">:</span>spinning <span class="operator">-></span>
-    <span class="comment"># Ballerina effect: L = I·ω conserved</span>
-    <span class="function">ballerina_effect</span>(new_moment<span class="operator">:</span> <span class="string">1.0</span>)
+<span class="keyword">interaction</span> <span class="function">integrate</span>(p<span class="operator">:</span>Particle, dt<span class="operator">:</span>float) <span class="keyword">do</span>
+  p.position = p.position + p.velocity * dt
 <span class="keyword">end</span>
-
+ 
 <span class="comment"># ⚗️ Compilation: ✓ Conservation verified</span>
 <span class="comment"># 🎯 Runtime overhead: 0 ns (zero cost!)</span><span class="cursor"></span></code></pre>
             </div>
@@ -542,6 +536,40 @@
             <div class="stat-card">
                 <div class="stat-number">100%</div>
                 <div class="stat-label">Type Safety</div>
+            </div>
+        </section>
+        
+        <!-- Benchmark Explanation -->
+        <section class="comparison" style="margin-top: 8rem;">
+            <h2>⚡ Performance Benchmarks</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>📊 Raw C Performance</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        Standalone C benchmark achieves <strong>2.5 billion operations/sec</strong> with simple gravity simulation.
+                        This counts raw floating-point operations (10,000 particles × 1000 steps).
+                    </p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>🔧 Elixir Compilation Speed</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        DSL compilation benchmarks show <strong>26.24M operations/sec</strong>.
+                        This measures how fast the compiler can parse and generate code.
+                    </p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>🎯 Why The Difference?</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">
+                        The benchmarks measure <strong>different things</strong>:
+                        <br><br>
+                        • C code: Raw floating-point operations in a simple O(N) simulation<br>
+                        • Elixir: DSL parsing, IR generation, and optimization<br>
+                        <br>
+                        A real physics simulation with collision detection would have different performance characteristics.
+                    </p>
+                </div>
             </div>
         </section>
         
@@ -664,7 +692,7 @@
     <footer>
         <div class="footer-links">
             <a href="#">Documentation</a>
-            <a href="#">Examples</a>
+            <a href="examples.html">Examples</a>
             <a href="#">GitHub</a>
             <a href="#">Discord</a>
             <a href="#">Twitter</a>

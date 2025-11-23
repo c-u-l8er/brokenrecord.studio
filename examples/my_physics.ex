@@ -4,7 +4,8 @@ defmodule MyPhysics do
 
   defsystem CollisionWorld do
     # Compile to CUDA for GPU execution
-    compile_target :cuda
+    # compile_target :cuda  # Temporarily disabled due to nvcc not found
+    compile_target :cpu
     optimize [:spatial_hash, :simd, :loop_fusion]
 
     agents do
@@ -67,6 +68,7 @@ defmodule MyPhysics do
   end
 end
 
+
 # Use it
 defmodule Demo do
   def run do
@@ -88,7 +90,7 @@ defmodule Demo do
 
   defp create_particles(n) do
     for i <- 1..n do
-      %BrokenRecord.Particle{
+      %{
         id: "p#{i}",
         mass: 1.0,
         radius: 0.5,

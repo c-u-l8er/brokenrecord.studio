@@ -14,13 +14,17 @@ defmodule BrokenRecordZero.MixProject do
   # Run "mix compile" to compile the C NIF
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :runtime_tools]
     ]
   end
 
   defp deps do
     [
-      # No dependencies needed for standalone version
+      {:benchee, "~> 1.3", only: :dev},
+      {:benchee_html, "~> 1.0", only: :dev},
+      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
+      {:plug_cowboy, "~> 2.6"},
+      {:jason, "~> 1.4"}
     ]
   end
 end
