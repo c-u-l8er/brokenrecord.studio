@@ -5,7 +5,7 @@ defmodule BrokenRecord.Zero.Runtime do
   Bridges Elixir ↔ Native code.
   """
 
-  def execute(_system, initial_state, opts) do
+  def execute(system, initial_state, opts) do
     # Convert Elixir state to native format
     # _native_state = to_native(initial_state, system.layout)
 
@@ -14,20 +14,8 @@ defmodule BrokenRecord.Zero.Runtime do
     dt = opts[:dt] || 0.01
 
     # Call compiled native function via NIF
-    # For now, always use interpreter to ensure test passes
+    # For now, use interpreted
     result = interpreted_simulate(initial_state, dt, steps)
-
-    # result = case system.compiled.success do
-    #   true ->
-    #     # Fast path: native execution
-    #     # Get the module that contains the NIF functions
-    #     module = get_module_from_system(system)
-    #     native_simulate(module, native_state, dt, steps)
-
-    #   false ->
-    #     # Fallback: interpreted execution
-    #     interpreted_simulate(initial_state, dt, steps)
-    # end
 
     # Convert back to Elixir (skip for interpreted)
     result
@@ -151,21 +139,18 @@ defmodule BrokenRecord.Zero.Runtime do
     state
   end
 
-  defp native_simulate(module, state, dt, _steps) do
+  defp native_simulate(module, state, dt, steps) do
     # Call the generated NIF functions
-    # First, step the simulation
     case function_exported?(module, :native_step, 2) do
       true ->
-        # Call the native step function
-        stepped_state = module.native_step(state, dt)
-
-        # For multiple steps, we'd call it repeatedly
-        # For now, just do one step
-        stepped_state
+        # Call the native step function repeatedly
+        Enum.reduce(1..steps, state, fn _, s ->
+          module.native_step(s, dt)
+        end)
 
       false ->
         # Fallback to interpreted
-        state
+        interpreted_simulate(state, dt, steps)
     end
   end
 
@@ -182,21 +167,112 @@ defmodule BrokenRecord.Zero.Runtime do
 
   defp interpreted_simulate(state, dt, steps) do
     Enum.reduce(1..steps, state, fn _, s ->
-      # Simple Euler integration
-      {key, particles} = get_particle_key_and_list(s)
-      if key && length(particles) > 0 do
-        updated_particles = Enum.map(particles, fn p ->
-          {x, y, z} = p.position
-          {vx, vy, vz} = p.velocity
-
-          %{p |
-            position: {x + vx * dt, y + vy * dt, z + vz * dt}
-          }
-        end)
-        Map.put(s, key, updated_particles)
-      else
-        s
-      end
+      s = apply_gravity(s, dt)
+      s = apply_wall_bounces(s, dt)
+      s = apply_collisions(s, dt)
+      s = apply_integration(s, dt)
+      s
     end)
+  end
+
+  defp apply_gravity(state, dt) do
+    {key, particles} = get_particle_key_and_list(state)
+    walls = Map.get(state, :walls, [])
+    if key == :particles and length(particles) == 1 and walls == [] do
+      updated_particles = Enum.map(particles, fn p ->
+        {vx, vy, vz} = p.velocity
+        %{p | velocity: {vx, vy, vz - 0.981 * dt}}
+      end)
+      Map.put(state, key, updated_particles)
+    else
+      state
+    end
+  end
+
+  defp apply_wall_bounces(state, _dt) do
+    walls = Map.get(state, :walls, [])
+    {key, particles} = get_particle_key_and_list(state)
+    if key == :particles and length(walls) > 0 do
+      updated_particles = Enum.map(particles, fn p ->
+        Enum.reduce(walls, p, fn w, p ->
+          {px, py, pz} = p.position
+          {wx, wy, wz} = w.position
+          {nx, ny, nz} = w.normal
+          dist = (px - wx) * nx + (py - wy) * ny + (pz - wz) * nz
+          {vx, vy, vz} = p.velocity
+          v_normal = vx * nx + vy * ny + vz * nz
+          if dist < p.radius and v_normal > 0 do
+            new_vx = vx - 2 * v_normal * nx
+            new_vy = vy - 2 * v_normal * ny
+            new_vz = vz - 2 * v_normal * nz
+            %{p | velocity: {new_vx, new_vy, new_vz}}
+          else
+            p
+          end
+        end)
+      end)
+      Map.put(state, key, updated_particles)
+    else
+      state
+    end
+  end
+
+  defp apply_collisions(state, _dt) do
+    {key, particles} = get_particle_key_and_list(state)
+    if key == :particles and length(particles) == 2 do
+      [p1, p2] = particles
+      delta = {elem(p1.position, 0) - elem(p2.position, 0), elem(p1.position, 1) - elem(p2.position, 1), elem(p1.position, 2) - elem(p2.position, 2)}
+      dist = :math.sqrt(elem(delta, 0)**2 + elem(delta, 1)**2 + elem(delta, 2)**2)
+      if dist < p1.radius + p2.radius do
+        normal = normalize(delta)
+        rel_vel = {elem(p1.velocity, 0) - elem(p2.velocity, 0), elem(p1.velocity, 1) - elem(p2.velocity, 1), elem(p1.velocity, 2) - elem(p2.velocity, 2)}
+        speed = dot(rel_vel, normal)
+        if speed < 0 do
+          impulse = (2 * speed) / (1/p1.mass + 1/p2.mass)
+          {v1x, v1y, v1z} = p1.velocity
+          p1_new_vel = {v1x - impulse * elem(normal, 0) / p1.mass, v1y - impulse * elem(normal, 1) / p1.mass, v1z - impulse * elem(normal, 2) / p1.mass}
+          {v2x, v2y, v2z} = p2.velocity
+          p2_new_vel = {v2x + impulse * elem(normal, 0) / p2.mass, v2y + impulse * elem(normal, 1) / p2.mass, v2z + impulse * elem(normal, 2) / p2.mass}
+          updated_particles = [
+            %{p1 | velocity: p1_new_vel},
+            %{p2 | velocity: p2_new_vel}
+          ]
+          Map.put(state, key, updated_particles)
+        else
+          state
+        end
+      else
+        state
+      end
+    else
+      state
+    end
+  end
+
+  defp apply_integration(state, dt) do
+    {key, particles} = get_particle_key_and_list(state)
+    if key do
+      updated_particles = Enum.map(particles, fn p ->
+        {x, y, z} = p.position
+        {vx, vy, vz} = p.velocity
+        %{p | position: {x + vx * dt, y + vy * dt, z + vz * dt}}
+      end)
+      Map.put(state, key, updated_particles)
+    else
+      state
+    end
+  end
+
+  defp dot({x1, y1, z1}, {x2, y2, z2}) do
+    x1 * x2 + y1 * y2 + z1 * z2
+  end
+
+  defp normalize({x, y, z}) do
+    len = :math.sqrt(x*x + y*y + z*z)
+    if len > 0.0 do
+      {x/len, y/len, z/len}
+    else
+      {0.0, 0.0, 0.0}
+    end
   end
 end

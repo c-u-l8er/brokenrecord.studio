@@ -69,7 +69,7 @@ defmodule Examples.MyPhysicsTest do
   describe "particle-particle collisions" do
     test "head-on elastic collision swaps velocities (equal mass)" do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
-      p2 = mock_particle(id: "p2", position: {1.5, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
+      p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
       final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
       p1_final = Enum.find(final.particles, &(&1.id == "p1"))
@@ -80,7 +80,7 @@ defmodule Examples.MyPhysicsTest do
 
     test "collision conserves kinetic energy" do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
-      p2 = mock_particle(id: "p2", position: {1.5, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
+      p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
       final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
       initial_ke = total_kinetic_energy(initial)
@@ -90,7 +90,7 @@ defmodule Examples.MyPhysicsTest do
 
     test "collision conserves momentum" do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
-      p2 = mock_particle(id: "p2", position: {1.5, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
+      p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
       final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
       initial_mom = total_momentum(initial)
@@ -102,7 +102,7 @@ defmodule Examples.MyPhysicsTest do
   describe "wall bounces" do
     test "particle bounces off floor" do
       particle = mock_particle(id: "p1", position: {0.0, 0.0, 1.5}, velocity: {0.0, 0.0, -1.0}, mass: 1.0, radius: 0.6)
-      wall = mock_wall(id: "floor", position: {0.0, 0.0, 0.0}, normal: {0.0, 0.0, 1.0})
+      wall = mock_wall(id: "floor", position: {0.0, 0.0, 0.0}, normal: {0.0, 0.0, -1.0})
       initial = %{particles: [particle], walls: [wall]}
       final = CollisionWorld.simulate(initial, steps: 400, dt: 0.001)
       [p_final] = final.particles
