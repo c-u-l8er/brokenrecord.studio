@@ -66,7 +66,7 @@ defmodule Examples.GravitySimulation do
       # Sun
       %{
         position: {0.0, 0.0, 0.0},
-        velocity: {0.0, 0.0, 0.0},
+        velocity: {0.0, -0.03125, 0.0},
         mass: 1000.0,
         radius: 5.0
       },

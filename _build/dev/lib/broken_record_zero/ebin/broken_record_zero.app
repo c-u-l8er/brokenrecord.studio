@@ -1,6 +1,5 @@
 {application,broken_record_zero,
-             [{modules,['Elixir.BrokenRecord.BenchmarkTest',
-                        'Elixir.BrokenRecord.Zero',
+             [{modules,['Elixir.BrokenRecord.Zero',
                         'Elixir.BrokenRecord.Zero.Analyzer',
                         'Elixir.BrokenRecord.Zero.CodeGen',
                         'Elixir.BrokenRecord.Zero.Compiler',

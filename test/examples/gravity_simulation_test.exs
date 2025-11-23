@@ -21,7 +21,7 @@ defmodule Examples.GravitySimulationTest do
       sun = Enum.find(system.bodies, &(&1.mass == 1000.0))
       assert sun != nil
       assert sun.position == {0.0, 0.0, 0.0}
-      assert sun.velocity == {0.0, 0.0, 0.0}
+      assert sun.velocity == {0.0, -0.03125, 0.0}
 
       earth = Enum.find(system.bodies, &(&1.mass == 1.0))
       assert earth != nil
@@ -275,7 +275,7 @@ defmodule Examples.GravitySimulationTest do
 
       # Artificially change energy to violate conservation
       modified_bodies = Enum.map(initial_system.bodies, fn body ->
-        %{body | velocity: {elem(body.velocity, 0) * 2, elem(body.velocity, 1), elem(body.velocity, 2)}}
+        %{body | velocity: {elem(body.velocity, 0) * 2, elem(body.velocity, 1) * 2, elem(body.velocity, 2) * 2}}
       end)
       final_system = %{initial_system | bodies: modified_bodies}
 
