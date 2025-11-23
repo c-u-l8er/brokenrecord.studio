@@ -10,6 +10,7 @@
 - End-to-end tests
 - Benchmarks
 
+  - **Actor Model & DSL Benchmarks**: DSL compilation ~30M ops/sec, large actor system (1000 actors) ~4.7k ips. See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md)
 ## Architecture Overview
 
 BrokenRecord Zero is a compile-time physics optimizer for Elixir. It transforms high-level physics descriptions into optimized native code.

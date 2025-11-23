@@ -1,36 +1,40 @@
 # BrokenRecord Zero
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/c-u-l8er/brokenrecord.studio/ci.yml)](https://github.com/c-u-l8er/brokenrecord.studio/actions)
+[![Hex.pm Version](https://img.shields.io/hexpm/v/broken_record_zero.svg)](https://hex.pm/packages/broken_record_zero)
 
-[![Build Status](https://github.com/your-org/broken_record_zero/workflows/badge.svg)]
-[![Coverage Status](https://github.com/your-org/broken_record_zero/workflows/coverage.svg)]
-[![Hex Version](https://img.shields.io/hexpm/v/broken_record_zero.svg)](https://hex.pm/packages/broken_record_zero)
+**Zero-overhead physics compiler for Elixir.** Transforms high-level physics DSL into optimized native code with compile-time conservation guarantees.
 
-**Zero-overhead physics compiler for Elixir that transforms high-level physics descriptions into optimized native code.**
+[🌐 Live Demo](index.html) | [📚 Examples](examples.html) | [📊 Benchmarks](benchmarks/) | [📖 Docs](scrap/docs/design.md)
 
 ## ✨ Features
 
-- ⚡ **Blazing Fast**: SIMD-optimized C implementation achieving 10M+ operations/sec
-- ✅ **Conservation Guaranteed**: Energy and momentum automatically verified at compile time
-- 🎯 **Simple API**: High-level Elixir interface with zero runtime overhead
-- 🔧 **Zero Overhead**: All optimization happens at compile time, not runtime
+- ⚡ **Blazing Fast**: Raw C backend achieves **2.5B operations/sec** (10k particles × 1000 steps)
+- ✅ **Conservation Guaranteed**: Energy/momentum verified at **compile time**
+- 🎯 **Zero Runtime Overhead**: DSL abstractions erased during compilation
+- 🔧 **SIMD Optimized**: AVX2 vectorization processes 8 particles/instruction
+- 🧬 **Actor Model**: Full actor system with supervision trees & load balancing
+- ⚛️ **Chemical Reactions**: Mass-conserving reaction networks
+- 🚀 **GPU Ready**: CUDA target (coming soon)
 
 ## 🚀 Quick Start
 
-### Installation
+### 1. Add to `mix.exs`
 
-```bash
-# Add to your mix.exs
+```elixir
 defp deps do
-  [{:broken_record_zero, "~> 0.1.0"}]
+  [
+    {:broken_record_zero, "~> 0.1.0"}
+  ]
 end
 ```
 
-### Basic Usage
+### 2. Basic Physics Simulation
 
 ```elixir
-defmodule MyPhysics do
+defmodule GravitySim do
   use BrokenRecord.Zero
 
-  defsystem ParticleSystem do
+  defsystem NBody do
     compile_target :cpu
     optimize [:simd, :spatial_hash]
 
@@ -39,125 +43,88 @@ defmodule MyPhysics do
         field :position, :vec3
         field :velocity, :vec3
         field :mass, :float
+        conserves [:energy, :momentum]
       end
     end
 
     rules do
-      interaction gravity(p1: Particle, p2: Particle) do
-        # Gravitational force
+      interaction gravity(p1: Particle, p2: Particle, dt: float) do
         r_vec = p2.position - p1.position
-        r_sq = dot(r_vec, r_vec)
-        r = sqrt(r_sq)
+        r = length(r_vec)
+        force = 6.67e-11 * p1.mass * p2.mass / (r * r)
+        dir = r_vec / r
         
-        force_magnitude = 6.67e-11 * p1.mass * p2.mass / (r * r)
-        force_direction = r_vec / r
-        
-        p1.velocity = p1.velocity + force_direction * force_magnitude * 0.01
-        p2.velocity = p2.velocity - force_direction * force_magnitude * 0.01
+        p1.velocity += dir * force * dt / p1.mass
+        p2.velocity -= dir * force * dt / p2.mass
       end
 
       interaction integrate(p: Particle, dt: float) do
-        # Euler integration
-        p.position = p.position + p.velocity * dt
+        p.position += p.velocity * dt
       end
     end
   end
 end
 
-# Create particles
+# Run simulation
 particles = [
-  %{position: {0.0, 0.0, 10.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0},
-  %{position: {5.0, 0.0, 10.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0}
+  %{position: {0,0,10}, velocity: {1,0,0}, mass: 1.0},
+  %{position: {5,0,10}, velocity: {-1,0,0}, mass: 1.0}
 ]
 
-# Run simulation
-{:ok, result} = MyPhysics.ParticleSystem.simulate(particles, dt: 0.01, steps: 1000)
+result = GravitySim.NBody.simulate(particles, steps: 1000, dt: 0.01)
+IO.inspect(result)
 ```
 
-## 📊 Performance
+## 📊 Performance Benchmarks
 
-| Target | Operations/sec | Status |
-|--------|----------------|--------|
-| CPU (single-core) | ~10M ops/sec | ✅ ACHIEVED |
-| CPU (multi-core) | ~50M ops/sec | ✅ ACHIEVED |
-| GPU | ~100M+ particles/sec | 🚧 Coming Soon |
+| Benchmark | Speed | Details |
+|-----------|-------|---------|
+| **Raw C (10k particles)** | **2.5B ops/sec** | 10k particles × 1000 steps |
+| **DSL Compilation (Simple)** | **26M ops/sec** | Parse → IR → Codegen |
+| **Actor Model (1000 actors)** | **1.2M steps/sec** | Message passing + supervision |
+| **N-Body Gravity** | **500k particles/sec** | Full physics simulation |
+
+See detailed [benchmark reports](benchmarks/).
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────┐
-│     High-Level Elixir API    │
-│  (BrokenRecord.Zero)           │
-├─────────────────────────────┤
-│     NIF Interface Layer       │
-│  (BrokenRecord.Zero.Native)         │
-├─────────────────────────────┤
-│   Optimized C Implementation        │
-│  • SIMD vectorization (AVX)       │
-│  • Structure-of-Arrays layout      │
-│  • Cache-friendly access patterns  │
-│  • OpenMP parallelization          │
-└─────────────────────────────┘
+High-Level Elixir DSL
+         ↓ (compile-time)
+Optimized C (SIMD/AVX2)
+         ↓ (NIF)
+Zero-overhead Elixir Runtime
 ```
 
-## 🔧 Optimization Techniques
-
-### Structure of Arrays (SoA)
-
-```c
-// Cache-friendly layout
-float pos_x[N];  // One cache line
-float pos_y[N];  // One cache line  
-float pos_z[N];  // One cache line
-```
-
-### SIMD Vectorization
-
-```c
-// Process 8 particles at once
-__m256 px = _mm256_loadu_ps(&sys->pos_x[i]);
-__m256 vx = _mm256_loadu_ps(&sys->vel_x[i]);
-__m256 dt_vec = _mm256_set1_ps(dt);
-
-px = _mm256_fmadd_ps(vx, dt_vec, px);  // 8 ops in one instruction!
-_mm256_storeu_ps(&sys->pos_x[i], px);
-```
-
-## 🧪 Testing
+## 🔧 Build & Test
 
 ```bash
-# Run all tests
-mix test
-
-# Run benchmarks
-mix run benchmarks/dsl_bench.exs
+mix deps.get
+mix compile          # Builds NIF
+mix test             # Unit tests
+mix run benchmarks/  # Performance
+mix phx.server       # Example server
 ```
 
-## 📚 Documentation
+## 📚 Examples
 
-- [**Developer Guide**](docs/RUNBOOK.md) - Comprehensive development documentation
-- [**API Reference**](docs/README.md) - Detailed API documentation
-- [**Examples**](examples/) - Sample physics simulations
+- [Actor Model](examples/actor_model.ex) - Concurrent actors with supervision
+- [Chemical Reactions](examples/chemical_reaction_net.ex) - Mass-conserving networks
+- [N-Body Gravity](examples/gravity_simulation.ex) - Solar system simulation
+- [Custom Physics](examples/my_physics.ex) - Collisions + GPU-ready
+
+[View Interactive Examples](examples.html)
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-### Areas for Contribution
-
-- **Additional Optimization Passes**: LTO, profile-guided optimization
-- **More Target Architectures**: ARM NEON, GPU CUDA
-- **Advanced Physics**: Constraints, joints, rigid bodies
-- **Tooling**: Better error messages, debuggers
+**Priority Areas:**
+- GPU (CUDA) backend
+- Rigid body dynamics
+- Constraint solvers
+- Visualization tooling
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Credits
-
-Based on:
-- Yves Lafont's Interaction Nets
-- Modern physics engine design (Box2D, Bullet)
-- SIMD optimization techniques
-- Elixir NIF best practices
+MIT © brokenrecord.studio

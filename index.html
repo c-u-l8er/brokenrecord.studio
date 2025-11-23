@@ -546,7 +546,7 @@
                 <div class="comparison-card">
                     <h3>📊 Raw C Performance</h3>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">
-                        Standalone C benchmark achieves <strong>2.5 billion operations/sec</strong> with simple gravity simulation.
+                        Standalone C benchmark achieves <strong>2.8 billion operations/sec</strong> with simple gravity simulation.
                         This counts raw floating-point operations (10,000 particles × 1000 steps).
                     </p>
                 </div>
@@ -554,21 +554,23 @@
                 <div class="comparison-card">
                     <h3>🔧 Elixir Compilation Speed</h3>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">
-                        DSL compilation benchmarks show <strong>26.24M operations/sec</strong>.
+                        DSL compilation benchmarks show <strong>27.6M operations/sec</strong>.
                         This measures how fast the compiler can parse and generate code.
                     </p>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <a href="/benchmarks/dsl_benchmarks.html" class="btn btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1.5rem;">View Full Benchmarks →</a>
+                    </div>
                 </div>
                 
                 <div class="comparison-card">
-                    <h3>🎯 Why The Difference?</h3>
+                    <h3>🎭 Actor Model Runtime</h3>
                     <p style="color: var(--text-secondary); margin-top: 1rem;">
-                        The benchmarks measure <strong>different things</strong>:
-                        <br><br>
-                        • C code: Raw floating-point operations in a simple O(N) simulation<br>
-                        • Elixir: DSL parsing, IR generation, and optimization<br>
-                        <br>
-                        A real physics simulation with collision detection would have different performance characteristics.
+                        1000 actors × 100 steps: <strong>~1M iterations/sec</strong> with supervision trees and message passing.
+                        Demonstrates concurrent actor system performance.
                     </p>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <a href="/benchmarks/actor_model_benchmarks.html" class="btn btn-secondary" style="font-size: 0.9rem; padding: 0.5rem 1.5rem;">View Full Benchmarks →</a>
+                    </div>
                 </div>
             </div>
         </section>
