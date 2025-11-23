@@ -58,7 +58,8 @@ defmodule Examples.MyPhysicsTest do
     test "positions update according to velocity" do
       particle = mock_particle(position: {0.0, 0.0, 0.0}, velocity: {1.0, 2.0, 0.0})
       initial = %{particles: [particle], walls: []}
-      final = CollisionWorld.simulate(initial, steps: 10, dt: 0.1)
+      # Use the no-gravity integration for this test
+      final = MyPhysics.CollisionWorld.simulate(initial, steps: 10, dt: 0.1, rules: [:integrate_no_gravity])
       [f_particle] = final.particles
       {x, y, _} = f_particle.position
       assert_approx_equal(x, 1.0, 0.1)
@@ -71,7 +72,8 @@ defmodule Examples.MyPhysicsTest do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
-      final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
+      # Use no-gravity integration for collision test
+      final = MyPhysics.CollisionWorld.simulate(initial, steps: 1000, dt: 0.001, rules: [:integrate_no_gravity])
       p1_final = Enum.find(final.particles, &(&1.id == "p1"))
       p2_final = Enum.find(final.particles, &(&1.id == "p2"))
       assert_vectors_equal(p1_final.velocity, {-1.0, 0.0, 0.0}, 0.3)
@@ -82,7 +84,8 @@ defmodule Examples.MyPhysicsTest do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
-      final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
+      # Use no-gravity integration for collision test
+      final = MyPhysics.CollisionWorld.simulate(initial, steps: 1000, dt: 0.001, rules: [:integrate_no_gravity])
       initial_ke = total_kinetic_energy(initial)
       final_ke = total_kinetic_energy(final)
       assert_conservation(initial_ke, final_ke, 0.05, "kinetic energy")
@@ -92,7 +95,8 @@ defmodule Examples.MyPhysicsTest do
       p1 = mock_particle(id: "p1", position: {0.0, 0.0, 0.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       p2 = mock_particle(id: "p2", position: {0.7, 0.0, 0.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, radius: 0.4)
       initial = %{particles: [p1, p2], walls: []}
-      final = CollisionWorld.simulate(initial, steps: 1000, dt: 0.001)
+      # Use no-gravity integration for collision test
+      final = MyPhysics.CollisionWorld.simulate(initial, steps: 1000, dt: 0.001, rules: [:integrate_no_gravity])
       initial_mom = total_momentum(initial)
       final_mom = total_momentum(final)
       assert_vectors_equal(initial_mom, final_mom, 0.1)

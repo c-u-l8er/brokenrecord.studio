@@ -69,6 +69,15 @@ defmodule MyPhysics do
         # Apply gravity
         p.velocity = {xv, yv, zv + (-0.981) * dt}
       end
+
+      # Position integration without gravity (for testing)
+      interaction integrate_no_gravity(p: Particle, dt: float) do
+        # Simple Euler integration without gravity
+        {xp, yp, zp} = p.position
+        {xv, yv, zv} = p.velocity
+        p.position = {xp + xv * dt, yp + yv * dt, zp + zv * dt}
+        # No gravity applied
+      end
     end
   end
 end

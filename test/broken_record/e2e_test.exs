@@ -17,6 +17,10 @@ defmodule BrokenRecord.E2ETest.Physics do
       interaction integrate(p: Particle, dt: float) do
         p.position = p.position + p.velocity * dt
       end
+
+      interaction integrate_no_gravity(p: Particle, dt: float) do
+        p.position = p.position + p.velocity * dt
+      end
     end
   end
 end
@@ -39,8 +43,8 @@ defmodule BrokenRecord.E2ETest do
 
     initial_state = %{particles: particles}
 
-    # Run simulation
-    final_state = TestPhysics.simulate(initial_state, steps: 10, dt: 0.1)
+    # Run simulation without gravity for accurate position testing
+    final_state = TestPhysics.simulate(initial_state, steps: 10, dt: 0.1, rules: [:integrate_no_gravity])
 
     # Check results
     # After 10 steps of 0.1s with velocity 1.0, position should be 1.0

@@ -7,6 +7,7 @@ defmodule BrokenRecordZero.MixProject do
       version: "0.1.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
+      compilers: [:elixir_make] ++ Mix.compilers(),
       deps: deps()
     ]
   end
@@ -24,7 +25,8 @@ defmodule BrokenRecordZero.MixProject do
       {:benchee_html, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
       {:plug_cowboy, "~> 2.6"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:elixir_make, "~> 0.6", runtime: false}
     ]
   end
 end

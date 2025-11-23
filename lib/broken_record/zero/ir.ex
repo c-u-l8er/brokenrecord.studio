@@ -50,23 +50,29 @@ defmodule BrokenRecord.Zero.IR do
     end)
   end
 
-  defp lower_type(:vec3), do: {:array, :float32, 3}
-  defp lower_type(:float), do: :float32
-  defp lower_type(:int), do: :int32
-  defp lower_type(t), do: t
+  def lower_type(:vec3), do: {:array, :float32, 3}
+  def lower_type(:float), do: :float32
+  def lower_type(:int), do: :int32
+  def lower_type(t), do: t
 
-  def type_size(:vec3), do: 12
-  def type_size(:float), do: 4
+  def type_size(:vec3), do: 12  # 3 floats × 4 bytes each
+  def type_size({:array, :float32, 3}), do: 12  # vec3 = 3 × float32
+  def type_size(:float), do: 4  # 32-bit float
   def type_size(:int), do: 4
   def type_size(_), do: 8
 
   defp compute_size(fields) do
-    fields
+    sizes = fields
     |> Enum.map(fn field ->
       type = if is_map(field), do: field.type, else: field
-      type_size(type)
+      size = type_size(type)
+      IO.inspect("DEBUG: Field #{inspect(field)} type #{inspect(type)} size #{size}")
+      size
     end)
-    |> Enum.sum()
+
+    total_size = Enum.sum(sizes)
+    IO.inspect("DEBUG: Total size calculation: #{inspect(sizes)} = #{total_size}")
+    total_size
   end
 
   defp compute_alignment(fields) do
