@@ -12,18 +12,15 @@ ifeq ($(UNAME_S), Darwin)
     LDFLAGS += -dynamiclib -undefined dynamic_lookup
 endif
 
-PRIV_DIR = ../priv
-NIF_SO = $(PRIV_DIR)/brokenrecord_physics.so
+NIF_NAME ?= brokenrecord_physics
+NIF_SO = $(NIF_NAME).so
 
 .PHONY: all clean
 
 all: $(NIF_SO)
 
-$(PRIV_DIR):
-	mkdir -p $(PRIV_DIR)
-
-$(NIF_SO): $(PRIV_DIR) c_src/brokenrecord_physics.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ c_src/brokenrecord_physics.c
+$(NIF_SO): brokenrecord_physics.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ brokenrecord_physics.c
 
 clean:
 	rm -f $(NIF_SO)

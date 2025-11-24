@@ -128,3 +128,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 ## 📄 License
 
 MIT © brokenrecord.studio
+
+## Quick Commands
+
+```sh
+make -C c_src                    # Compile the NIF
+mkdir -p priv && cp c_src/brokenrecord_physics.so priv/  # Copy to priv directory
+```

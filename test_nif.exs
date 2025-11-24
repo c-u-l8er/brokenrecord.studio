@@ -1,40 +1,43 @@
 #!/usr/bin/env elixir
 
-# Simple test to check NIF function availability
-defmodule TestNIF do
-  def test do
-    IO.inspect("=== NIF Function Availability Test ===")
+# Simple test script to verify NIF loading without mix compilation issues
 
-    # Check if module is loaded
-    IO.inspect("Code.ensure_loaded?: #{Code.ensure_loaded?(BrokenRecord.Zero.NIF)}")
+IO.puts("Testing NIF loading...")
 
-    # Check module info
-    if Code.ensure_loaded?(BrokenRecord.Zero.NIF) do
-      IO.inspect("Module info: #{inspect(:erlang.apply(BrokenRecord.Zero.NIF, :module_info, [:functions]))}")
-    end
+# Try to load the NIF module directly
+try do
+  Code.require_file("lib/broken_record/zero/nif.ex")
+  IO.puts("✓ NIF module loaded successfully")
 
-    # Check specific functions
-    functions = [
-      {:create_particle_system, 1},
-      {:native_integrate, 3},
-      {:to_elixir_state, 1}
-    ]
-
-    Enum.each(functions, fn {name, arity} ->
-      available = function_exported?(BrokenRecord.Zero.NIF, name, arity)
-      IO.inspect("Function #{name}/#{arity}: #{available}")
-    end)
-
-    # Try to call a function directly
-    test_state = %{particles: [%{position: {1.0, 2.0, 3.0}, velocity: {0.1, 0.2, 0.3}, mass: 1.0}]}
-
-    try do
-      result = BrokenRecord.Zero.NIF.create_particle_system(test_state)
-      IO.inspect("Direct call result: #{inspect(result)}")
-    rescue
-      e -> IO.inspect("Direct call error: #{Exception.message(e)}")
-    end
+  # Test if NIF functions are available
+  if function_exported?(BrokenRecord.Zero.NIF, :create_particle_system, 1) do
+    IO.puts("✓ create_particle_system function is available")
+  else
+    IO.puts("✗ create_particle_system function is NOT available")
   end
-end
 
-TestNIF.test()
+  # Try to create a simple test state
+  test_state = %{
+    particles: [%{
+      id: "test_particle",
+      position: {0.0, 0.0, 10.0},
+      velocity: {0.0, 0.0, 0.0},
+      mass: 1.0,
+      radius: 1.0
+    }],
+    walls: []
+  }
+
+  IO.puts("✓ Test state created")
+  IO.puts("State: #{inspect(test_state)}")
+
+  # Try to call the NIF
+  result = BrokenRecord.Zero.NIF.create_particle_system(test_state)
+  IO.puts("✓ NIF create_particle_system called successfully")
+  IO.puts("Result: #{inspect(result)}")
+
+rescue
+  e ->
+    IO.puts("✗ Error loading or calling NIF: #{inspect(e)}")
+    IO.puts("Error type: #{Exception.message(e)}")
+end

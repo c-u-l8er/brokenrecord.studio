@@ -29,12 +29,23 @@ defmodule BrokenRecord.Zero.Runtime do
   end
 
   defp should_use_native?(state) do
-    native_available?() and has_physics_data?(state)
+    result = native_available?() and has_physics_data?(state) and not has_walls?(state)
+    IO.puts("DEBUG: should_use_native? result: #{inspect(result)}")
+    IO.puts("DEBUG: should_use_native? native_available?: #{inspect(native_available?())}")
+    IO.puts("DEBUG: should_use_native? has_physics_data?: #{inspect(has_physics_data?(state))}")
+    IO.puts("DEBUG: should_use_native? has_walls?: #{inspect(has_walls?(state))}")
+    result
   end
 
   defp has_physics_data?(state) do
     # Check if state contains physics simulation data (particles, molecules, or bodies)
     Map.has_key?(state, :particles) or Map.has_key?(state, :molecules) or Map.has_key?(state, :bodies)
+  end
+
+  defp has_walls?(state) do
+    # Check if state has walls - if so, use interpreted fallback for now
+    walls = Map.get(state, :walls, [])
+    is_list(walls) and length(walls) > 0
   end
 
   defp native_execute(state, dt, steps, rules) do
@@ -80,25 +91,6 @@ defmodule BrokenRecord.Zero.Runtime do
         IO.puts("DEBUG: Error stacktrace: #{inspect(Process.info(self(), :current_stacktrace))}")
         interpreted_simulate(state, dt, steps, rules)
     end
-  end
-
-  defp get_module_from_system(system) do
-    # Extract module name from the system
-    # This is a bit of a hack - we need to get the module that used the DSL
-    case system.ir.metadata do
-      %{module: module} -> module
-      _ ->
-        # Fallback - try to find the module from the IR
-        # This is not ideal but works for now
-        nil
-    end
-  end
-
-  defp get_rules_from_state(_state) do
-    # Extract rules from state for native execution
-    # For now, return empty list since we can't easily extract rules from state
-    # This is a limitation of the current architecture
-    []
   end
 
   def to_native(state, layout) do
@@ -297,13 +289,8 @@ defmodule BrokenRecord.Zero.Runtime do
   end
 
   defp interpreted_simulate(state, dt, steps, rules \\ []) do
-    IO.inspect("DEBUG: interpreted_simulate - starting with state: #{inspect(state, pretty: true)}")
-    IO.inspect("DEBUG: interpreted_simulate - dt: #{dt}, steps: #{steps}")
-    IO.inspect("DEBUG: interpreted_simulate - rules: #{inspect(rules)}")
-
     # Preserve all original keys in the result
     result = Enum.reduce(1..steps, state, fn _step, s ->
-      # IO.inspect("DEBUG: interpreted_simulate - step #{step}")  # Commented to reduce noise
       s =
         if not Enum.member?(rules, :integrate_no_gravity) do
           apply_gravity(s, dt)
@@ -372,11 +359,8 @@ defmodule BrokenRecord.Zero.Runtime do
 
   defp apply_collisions(state, _dt) do
     {key, particles} = get_particle_key_and_list(state)
-    IO.inspect("DEBUG: apply_collisions - key: #{key}, particle_count: #{length(particles)}")
     if key == :particles and length(particles) == 2 do
       [p1, p2] = particles
-      IO.inspect("DEBUG: apply_collisions - p1.id: #{p1.id}, p2.id: #{p2.id}")
-      IO.inspect("DEBUG: apply_collisions - p1.velocity: #{inspect(p1.velocity)}, p2.velocity: #{inspect(p2.velocity)}")
       delta = {elem(p1.position, 0) - elem(p2.position, 0), elem(p1.position, 1) - elem(p2.position, 1), elem(p1.position, 2) - elem(p2.position, 2)}
       dist = :math.sqrt(elem(delta, 0)**2 + elem(delta, 1)**2 + elem(delta, 2)**2)
 
@@ -396,19 +380,14 @@ defmodule BrokenRecord.Zero.Runtime do
             %{p1 | velocity: p1_new_vel},
             %{p2 | velocity: p2_new_vel}
           ]
-          IO.inspect("DEBUG: apply_collisions - updated particles with IDs: #{inspect([p1.id, p2.id])}")
-          IO.inspect("DEBUG: apply_collisions - new velocities: #{inspect([p1_new_vel, p2_new_vel])}")
           Map.put(state, key, updated_particles)
         else
-          IO.inspect("DEBUG: apply_collisions - no collision (speed >= 0)")
           state
         end
       else
-        IO.inspect("DEBUG: apply_collisions - no collision (distance too large)")
         state
       end
     else
-      IO.inspect("DEBUG: apply_collisions - skipping (not 2 particles)")
       state
     end
   end

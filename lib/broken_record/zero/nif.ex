@@ -7,7 +7,17 @@ defmodule BrokenRecord.Zero.NIF do
 
   def load_nif do
     priv_dir = :code.priv_dir(:broken_record_zero)
-    expected_nif_file = :filename.join(priv_dir, "brokenrecord_physics")
+
+    # Handle case where priv_dir might be an error tuple
+    priv_dir = case priv_dir do
+      {:error, _} ->
+        # Fallback: try to find priv directory manually
+        Path.expand("./priv", File.cwd!())
+      _ ->
+        priv_dir
+    end
+
+    expected_nif_file = Path.join(priv_dir, "brokenrecord_physics")
 
     IO.inspect("DEBUG: NIF loading - priv_dir: #{inspect(priv_dir)}")
     IO.inspect("DEBUG: NIF loading - expected_nif_file: #{inspect(expected_nif_file)}")
@@ -20,27 +30,9 @@ defmodule BrokenRecord.Zero.NIF do
         IO.inspect("DEBUG: Found .so files: #{inspect(so_files)}")
 
         # Try to find the expected exact filename first
-        result = if Enum.member?(so_files, "brokenrecord_physics.so") do
-          IO.inspect("DEBUG: Found expected brokenrecord_physics.so")
-          :erlang.load_nif(expected_nif_file, 0)
-        else
-          IO.inspect("DEBUG: Expected brokenrecord_physics.so not found, trying first available .so file")
-          # Fallback: try to use the first available .so file
-          case so_files do
-            [first_so | _] ->
-              # Remove .so extension if present to avoid double extension
-              base_name = String.replace_suffix(first_so, ".so", "")
-              fallback_path = :filename.join(priv_dir, base_name)
-              IO.inspect("DEBUG: Trying fallback NIF file: #{inspect(fallback_path)}")
-              :erlang.load_nif(fallback_path, 0)
-            [] ->
-              IO.inspect("DEBUG: No .so files found, NIF loading will fail")
-              {:error, :no_so_files}
-          end
-        end
-
-        IO.inspect("DEBUG: NIF load result: #{inspect(result)}")
-        result
+        load_result = :erlang.load_nif(expected_nif_file, 0)
+        IO.inspect("DEBUG: Direct NIF load result: #{inspect(load_result)}")
+        load_result
       {:error, reason} ->
         IO.inspect("DEBUG: Cannot list priv_dir: #{inspect(reason)}")
         {:error, reason}
@@ -60,7 +52,7 @@ defmodule BrokenRecord.Zero.NIF do
         IO.inspect("DEBUG: create_particle_system - about to call with state: #{inspect(state, pretty: true)}")
 
         # Check if the function is actually the NIF or a fallback
-        case :erlang.fun_info(__MODULE__.create_particle_system, :type) do
+        case :erlang.fun_info({__MODULE__, :create_particle_system, 1}, :type) do
           {:type, :external} ->
             IO.inspect("DEBUG: create_particle_system - confirmed NIF function (external)")
           {:type, :local} ->
@@ -81,9 +73,10 @@ defmodule BrokenRecord.Zero.NIF do
     end
   end
 
-  def native_integrate(system, dt, steps, opts) do
+  def native_integrate(_system, _dt, _steps, _opts) do
     # This function will be replaced by the C NIF when the module loads
     # If NIF is not loaded, raise an error
+    IO.puts("DEBUG: native_integrate called but NIF not loaded")
     :erlang.nif_error(:nif_not_loaded)
   end
 

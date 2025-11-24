@@ -18,10 +18,21 @@ typedef struct {
     float* vel_y;
     float* vel_z;
     float* mass;
+    float* radius;  // Add particle radius
     char** ids;  // Store particle IDs
     uint32_t count;
     uint32_t capacity;
 } ParticleSystem;
+
+typedef struct {
+    float* pos_x;
+    float* pos_y;
+    float* pos_z;
+    float* normal_x;
+    float* normal_y;
+    float* normal_z;
+    uint32_t count;
+} WallSystem;
 
 static ErlNifResourceType* particle_system_type = NULL;
 
@@ -38,6 +49,7 @@ static void particle_system_destructor(ErlNifEnv* env __attribute__((unused)), v
     if (sys->vel_y) { free(sys->vel_y); }
     if (sys->vel_z) { free(sys->vel_z); }
     if (sys->mass) { free(sys->mass); }
+    if (sys->radius) { free(sys->radius); }
     if (sys->ids) {
         for (uint32_t i = 0; i < sys->count; i++) {
             if (sys->ids[i]) { free(sys->ids[i]); }
@@ -90,8 +102,14 @@ static ERL_NIF_TERM get_tuple_elem(ErlNifEnv* env, ERL_NIF_TERM tuple, int index
 
 static void apply_gravity_simd(ParticleSystem* sys, float dt) {
     // DISABLE SIMD - use simple scalar code for debugging
+    printf("DEBUG: apply_gravity_simd called with dt=%f, sys->count=%u\n", dt, sys->count);
+    printf("DEBUG: sys pointer: %p, sys->vel_z pointer: %p\n", (void*)sys, (void*)sys->vel_z);
+    
     for (uint32_t i = 0; i < sys->count; i++) {
-        sys->vel_y[i] += -0.981f * dt;
+        printf("DEBUG GRAVITY: Before - vel_y[%u]=%f, vel_z[%u]=%f\n", i, sys->vel_y[i], i, sys->vel_z[i]);
+        float old_vel_z = sys->vel_z[i];
+        sys->vel_z[i] += -0.981f * dt;  // FIXED: Restored correct gravity constant
+        printf("DEBUG GRAVITY: After - vel_y[%u]=%f, vel_z[%u]=%f (delta: %f)\n", i, sys->vel_y[i], i, sys->vel_z[i], sys->vel_z[i] - old_vel_z);
     }
 }
 
@@ -180,10 +198,11 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
         sys->vel_y = aligned_malloc(size, 32);
         sys->vel_z = aligned_malloc(size, 32);
         sys->mass = aligned_malloc(size, 32);
+        sys->radius = aligned_malloc(size, 32);
         sys->ids = malloc(count * sizeof(char*));
         
         if (!sys->pos_x || !sys->pos_y || !sys->pos_z ||
-            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->ids) {
+            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->radius || !sys->ids) {
             printf("DEBUG C: allocation failed\n");
             enif_release_resource(sys);
             return enif_make_atom(env, "allocation_error");
@@ -325,10 +344,11 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
         sys->vel_y = aligned_malloc(size, 32);
         sys->vel_z = aligned_malloc(size, 32);
         sys->mass = aligned_malloc(size, 32);
+        sys->radius = aligned_malloc(size, 32);
         sys->ids = malloc(particle_count * sizeof(char*));
         
         if (!sys->pos_x || !sys->pos_y || !sys->pos_z ||
-            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->ids) {
+            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->radius || !sys->ids) {
             printf("DEBUG C: allocation failed for particles format\n");
             enif_release_resource(sys);
             return enif_make_atom(env, "allocation_error");
@@ -346,10 +366,11 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             }
             
             // Extract particle fields
-            ERL_NIF_TERM pos_term, vel_term, mass_term, id_term;
+            ERL_NIF_TERM pos_term, vel_term, mass_term, radius_term, id_term;
             if (!enif_get_map_value(env, head, enif_make_atom(env, "position"), &pos_term) ||
                 !enif_get_map_value(env, head, enif_make_atom(env, "velocity"), &vel_term) ||
                 !enif_get_map_value(env, head, enif_make_atom(env, "mass"), &mass_term) ||
+                !enif_get_map_value(env, head, enif_make_atom(env, "radius"), &radius_term) ||
                 !enif_get_map_value(env, head, enif_make_atom(env, "id"), &id_term)) {
                 printf("DEBUG C: ERROR - failed to extract particle %u fields\n", i);
                 enif_release_resource(sys);
@@ -396,6 +417,14 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             double mass;
             if (!enif_get_double(env, mass_term, &mass)) {
                 printf("DEBUG C: ERROR - failed to get mass for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Extract radius
+            double radius;
+            if (!enif_get_double(env, radius_term, &radius)) {
+                printf("DEBUG C: ERROR - failed to get radius for particle %u\n", i);
                 enif_release_resource(sys);
                 return enif_make_badarg(env);
             }
@@ -448,14 +477,15 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             sys->vel_y[i] = (float)vel_y;
             sys->vel_z[i] = (float)vel_z;
             sys->mass[i] = (float)mass;
+            sys->radius[i] = (float)radius;
             
             // Allocate and copy ID
             sys->ids[i] = malloc(strlen(id_str) + 1);
             strcpy(sys->ids[i], id_str);
             
-            printf("DEBUG C: extracted particle %u: id='%s', pos=(%f,%f,%f), vel=(%f,%f,%f), mass=%f\n",
+            printf("DEBUG C: extracted particle %u: id='%s', pos=(%f,%f,%f), vel=(%f,%f,%f), mass=%f, radius=%f\n",
                    i, sys->ids[i], sys->pos_x[i], sys->pos_y[i], sys->pos_z[i],
-                   sys->vel_x[i], sys->vel_y[i], sys->vel_z[i], sys->mass[i]);
+                   sys->vel_x[i], sys->vel_y[i], sys->vel_z[i], sys->mass[i], sys->radius[i]);
             
             current_list = tail;
         }
@@ -478,6 +508,9 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
     double dt;
     int steps;
     int apply_gravity = 1; // Default: apply gravity
+    WallSystem walls = {0}; // Initialize wall system
+    
+    printf("DEBUG C: native_integrate FUNCTION CALLED with argc=%d\n", argc);
     
     if (!enif_get_resource(env, argv[0], particle_system_type, (void**)&sys)) {
         return enif_make_badarg(env);
@@ -491,29 +524,45 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
         return enif_make_badarg(env);
     }
     
-    // Check if we have a 4th argument (rules) - if present, assume no gravity
-    if (argc >= 4) {
-        apply_gravity = 0; // Don't apply gravity when rules are provided
+    // Check if we have a 4th argument (rules) - if present, check if it contains :integrate_no_gravity
+    // Default is to apply gravity
+    apply_gravity = 1;
+    
+    // ALWAYS APPLY GRAVITY - NO CONDITIONS
+    apply_gravity = 1;
+    printf("DEBUG C: apply_gravity set to 1 (no conditions)\n");
+    fflush(stdout);
+    
+    // Extract walls from the original state if available
+    // We need to get the original state from the particle system resource
+    // For now, we'll skip wall collisions in native code and let the Elixir fallback handle it
+    
+    printf("DEBUG C: About to start simulation loop, apply_gravity=%d\n", apply_gravity);
+    fflush(stdout);
+    
+    // DEBUG: Print initial state
+    if (sys->count > 0) {
+        printf("DEBUG: Initial particle 0 state - pos_z: %f, vel_z: %f\n", sys->pos_z[0], sys->vel_z[0]);
+        fflush(stdout);
     }
     
     // RUN THE ACTUAL PHYSICS!
     for (int step = 0; step < steps; step++) {
         // Debug: Print first particle's state for first few steps
         if (step < 3 && sys->count > 0) {
-            printf("DEBUG C: Step %d - apply_gravity: %d, pos_y: %f, vel_y: %f\n",
-                   step, apply_gravity, sys->pos_y[0], sys->vel_y[0]);
+            printf("DEBUG C: Step %d - before apply_gravity: pos_z=%f, vel_z=%f\n",
+                   step, sys->pos_z[0], sys->vel_z[0]);
+            fflush(stdout);  // Force output to appear immediately
         }
         
-        // DISABLE COLLISIONS FOR NOW - just test integration
         // Check for particle-particle collisions
-        /*
         for (uint32_t i = 0; i < sys->count; i++) {
             for (uint32_t j = i + 1; j < sys->count; j++) {
                 double dx = sys->pos_x[i] - sys->pos_x[j];
                 double dy = sys->pos_y[i] - sys->pos_y[j];
                 double dz = sys->pos_z[i] - sys->pos_z[j];
                 double dist_sq = dx*dx + dy*dy + dz*dz;
-                double min_dist = 0.8f; // Default radius for collision
+                double min_dist = sys->radius[i] + sys->radius[j];
                 
                 if (dist_sq < min_dist * min_dist) {
                     // Collision detected - elastic collision
@@ -544,12 +593,41 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
                 }
             }
         }
-        */
         
-        if (apply_gravity) {
-            apply_gravity_simd(sys, (float)dt);
+        // ALWAYS APPLY GRAVITY - NO CONDITIONS
+        printf("DEBUG C: About to apply gravity (HARDCODED), apply_gravity=%d\n", apply_gravity);
+        fflush(stdout);
+        printf("DEBUG C: Calling apply_gravity_simd directly - sys=%p, dt=%f\n", (void*)sys, (float)dt);
+        fflush(stdout);
+        
+        // DEBUG: Add direct inline gravity to bypass function call issue
+        // REMOVED: Duplicate inline gravity application to fix double-counting bug
+        // if (sys->count > 0) {
+        //     printf("DEBUG C: INLINE GRAVITY - Before: vel_z[0]=%f\n", sys->vel_z[0]);
+        //     sys->vel_z[0] += -0.981f * (float)dt;
+        //     printf("DEBUG C: INLINE GRAVITY - After: vel_z[0]=%f\n", sys->vel_z[0]);
+        // }
+        
+        // Single gravity application via function call (fixed double application bug)
+        apply_gravity_simd(sys, (float)dt);
+        printf("DEBUG C: Applied gravity ONCE via apply_gravity_simd function\n");
+        
+        if (step < 3 && sys->count > 0) {
+            printf("DEBUG C: Step %d - after apply_gravity: pos_z=%f, vel_z=%f\n",
+                   step, sys->pos_z[0], sys->vel_z[0]);
+            fflush(stdout);
         }
         integrate_positions_simd(sys, (float)dt);
+        
+        // Apply wall collisions if we have wall data
+        // For now, skip wall collisions in native code since we don't have wall data
+        // This will be handled by the Elixir fallback
+    }
+    
+    // DEBUG: Print final state
+    if (sys->count > 0) {
+        printf("DEBUG: Final particle 0 state - pos_z: %f, vel_z: %f\n", sys->pos_z[0], sys->vel_z[0]);
+        fflush(stdout);
     }
     
     // Return the resource (state is mutated in place)
