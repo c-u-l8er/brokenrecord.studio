@@ -400,12 +400,44 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
                 return enif_make_badarg(env);
             }
             
-            // Extract ID
+            // Extract ID - Add debugging to check term type
+            printf("DEBUG C: particle %u - attempting to extract ID from term\n", i);
             char id_str[256];
-            if (!enif_get_string(env, id_term, id_str, sizeof(id_str), ERL_NIF_UTF8)) {
-                printf("DEBUG C: ERROR - failed to get ID for particle %u\n", i);
-                enif_release_resource(sys);
-                return enif_make_badarg(env);
+            
+            // Check if the ID term is an atom or string
+            if (enif_is_atom(env, id_term)) {
+                printf("DEBUG C: particle %u - ID is an atom, converting to string\n", i);
+                char atom_buf[256];
+                if (enif_get_atom(env, id_term, atom_buf, sizeof(atom_buf), ERL_NIF_UTF8)) {
+                    printf("DEBUG C: particle %u - successfully converted atom to string: '%s'\n", i, atom_buf);
+                    strncpy(id_str, atom_buf, sizeof(id_str) - 1);
+                    id_str[sizeof(id_str) - 1] = '\0';
+                } else {
+                    printf("DEBUG C: ERROR - failed to convert atom to string for particle %u\n", i);
+                    enif_release_resource(sys);
+                    return enif_make_badarg(env);
+                }
+            } else if (enif_is_binary(env, id_term)) {
+                printf("DEBUG C: particle %u - ID is a binary, converting to string\n", i);
+                ErlNifBinary id_binary;
+                if (!enif_inspect_binary(env, id_term, &id_binary)) {
+                    printf("DEBUG C: ERROR - failed to inspect binary ID for particle %u\n", i);
+                    enif_release_resource(sys);
+                    return enif_make_badarg(env);
+                }
+                
+                // Copy binary data to string, ensuring null termination
+                size_t copy_len = (id_binary.size < sizeof(id_str) - 1) ? id_binary.size : sizeof(id_str) - 1;
+                memcpy(id_str, id_binary.data, copy_len);
+                id_str[copy_len] = '\0';
+                printf("DEBUG C: particle %u - successfully converted binary to string: '%s'\n", i, id_str);
+            } else {
+                printf("DEBUG C: particle %u - ID term type: %d (not atom or binary)\n", i, enif_term_type(env, id_term));
+                if (!enif_get_string(env, id_term, id_str, sizeof(id_str), ERL_NIF_UTF8)) {
+                    printf("DEBUG C: ERROR - failed to get ID for particle %u (term not a string)\n", i);
+                    enif_release_resource(sys);
+                    return enif_make_badarg(env);
+                }
             }
             
             // Store in arrays
