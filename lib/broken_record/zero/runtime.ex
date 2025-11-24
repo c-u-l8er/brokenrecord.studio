@@ -5,7 +5,7 @@ defmodule BrokenRecord.Zero.Runtime do
   Bridges Elixir ↔ Native code.
   """
 
-  def execute(system, initial_state, opts) do
+  def execute(_system, initial_state, opts) do
     steps = opts[:steps] || 1000
     dt = opts[:dt] || 0.01
     rules = opts[:rules] || []
@@ -45,11 +45,17 @@ defmodule BrokenRecord.Zero.Runtime do
 
       IO.puts("DEBUG: native_execute - rules: #{inspect(rules)}")
 
-      layout = %{strategy: :soa}
-      packed_state = to_native(state, layout)
-      IO.inspect(packed_state, label: "DEBUG: native_execute - packed_state")
-      IO.puts("DEBUG: About to call NIF.create_particle_system")
-      sys_resource = BrokenRecord.Zero.NIF.create_particle_system(packed_state)
+      # DEBUG: Determine layout - this is where the issue likely is
+      layout = %{strategy: :soa}  # Default to SOA layout for now
+      IO.puts("DEBUG: native_execute - determined layout: #{inspect(layout)}")
+
+      # The NIF expects the original Elixir map format, not the packed binary format
+      # Let's pass the original state directly to the NIF
+      IO.puts("DEBUG: About to call NIF.create_particle_system with original state")
+      IO.puts("DEBUG: State format check - has particles: #{Map.has_key?(state, :particles)}")
+      IO.puts("DEBUG: State format check - has count: #{Map.has_key?(state, :count)}")
+      IO.puts("DEBUG: State format check - particles count: #{length(Map.get(state, :particles, []))}")
+      sys_resource = BrokenRecord.Zero.NIF.create_particle_system(state)
       IO.puts("DEBUG: NIF.create_particle_system returned: #{inspect(sys_resource)}")
       IO.puts("DEBUG: native_execute - created resource: #{inspect(sys_resource)}")
 
@@ -296,7 +302,7 @@ defmodule BrokenRecord.Zero.Runtime do
     IO.inspect("DEBUG: interpreted_simulate - rules: #{inspect(rules)}")
 
     # Preserve all original keys in the result
-    result = Enum.reduce(1..steps, state, fn step, s ->
+    result = Enum.reduce(1..steps, state, fn _step, s ->
       # IO.inspect("DEBUG: interpreted_simulate - step #{step}")  # Commented to reduce noise
       s =
         if not Enum.member?(rules, :integrate_no_gravity) do

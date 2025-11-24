@@ -51,10 +51,24 @@ defmodule BrokenRecord.Zero.NIF do
     IO.inspect("DEBUG: create_particle_system - checking function availability")
     IO.inspect("DEBUG: create_particle_system - module: #{__MODULE__}")
     IO.inspect("DEBUG: create_particle_system - functions: #{:erlang.apply(__MODULE__, :module_info, [:functions])}")
+    IO.inspect("DEBUG: create_particle_system - state type: #{inspect(state)}")
+    IO.inspect("DEBUG: create_particle_system - state keys: #{inspect(Map.keys(state))}")
 
     case function_exported?(__MODULE__, :create_particle_system, 1) do
       true ->
         IO.inspect("DEBUG: create_particle_system - function is exported, calling NIF")
+        IO.inspect("DEBUG: create_particle_system - about to call with state: #{inspect(state, pretty: true)}")
+
+        # Check if the function is actually the NIF or a fallback
+        case :erlang.fun_info(__MODULE__.create_particle_system, :type) do
+          {:type, :external} ->
+            IO.inspect("DEBUG: create_particle_system - confirmed NIF function (external)")
+          {:type, :local} ->
+            IO.inspect("DEBUG: create_particle_system - this is a local Elixir function, not NIF")
+          other ->
+            IO.inspect("DEBUG: create_particle_system - unknown function type: #{inspect(other)}")
+        end
+
         result = :erlang.apply(__MODULE__, :create_particle_system, [state])
         IO.inspect("DEBUG: create_particle_system - NIF result: #{inspect(result)}")
         result
@@ -67,14 +81,10 @@ defmodule BrokenRecord.Zero.NIF do
     end
   end
 
-  def native_integrate(system, dt, steps, opts \\ []) do
-    case function_exported?(__MODULE__, :native_integrate, 4) do
-      true -> :erlang.apply(__MODULE__, :native_integrate, [system, dt, steps, opts])
-      false ->
-        IO.warn("NIF native_integrate not available, falling back to interpreted")
-        # Fallback to interpreted for now
-        BrokenRecord.Zero.Runtime.interpreted_simulate(system, dt, steps)
-    end
+  def native_integrate(system, dt, steps, opts) do
+    # This function will be replaced by the C NIF when the module loads
+    # If NIF is not loaded, raise an error
+    :erlang.nif_error(:nif_not_loaded)
   end
 
   def to_elixir_state(system) do

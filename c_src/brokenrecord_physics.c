@@ -110,121 +110,334 @@ static void integrate_positions_simd(ParticleSystem* sys, float dt) {
 
 // Create particle system from Elixir state
 static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute__((unused)), const ERL_NIF_TERM argv[]) {
-    // argv[0] = %{particles: [...], walls: [...]}
-    ERL_NIF_TERM particles_list;
+    printf("DEBUG C: create_particle_system called with argc=%d\n", argc);
+    
+    // argv[0] should be a map with packed binary data
+    if (argc < 1) {
+        printf("DEBUG C: ERROR - argc < 1\n");
+        return enif_make_badarg(env);
+    }
+    
+    // Check if argv[0] is a map
+    if (!enif_is_map(env, argv[0])) {
+        printf("DEBUG C: ERROR - argv[0] is not a map\n");
+        return enif_make_badarg(env);
+    }
+    
+    printf("DEBUG C: argv[0] is a map, checking format\n");
+    
+    // Check for both packed format (count field) and original format (particles field)
+    ERL_NIF_TERM count_term, particles_term;
+    int has_count = enif_get_map_value(env, argv[0], enif_make_atom(env, "count"), &count_term);
+    int has_particles = enif_get_map_value(env, argv[0], enif_make_atom(env, "particles"), &particles_term);
+    
+    printf("DEBUG C: has_count=%d, has_particles=%d\n", has_count, has_particles);
+    
     unsigned int count;
     
-    if (!enif_get_map_value(env, argv[0], enif_make_atom(env, "particles"), &particles_list)) {
-        return enif_make_badarg(env);
-    }
+    if (has_count) {
+        // Packed format: %{count: N, pos_x: <<...>>, pos_y: <<...>>, ...}
+        printf("DEBUG C: detected packed format\n");
+        
+        if (!enif_get_uint(env, count_term, &count)) {
+            printf("DEBUG C: ERROR - failed to get count\n");
+            return enif_make_badarg(env);
+        }
+        
+        printf("DEBUG C: particle count: %u\n", count);
     
-    if (!enif_get_list_length(env, particles_list, &count)) {
-        return enif_make_badarg(env);
-    }
-    
-    // Allow empty systems
-    if (count == 0) {
-        // Create empty system
+        // Allow empty systems
+        if (count == 0) {
+            printf("DEBUG C: creating empty system\n");
+            // Create empty system
+            ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            sys->count = 0;
+            sys->capacity = 0;
+            sys->pos_x = NULL;
+            sys->pos_y = NULL;
+            sys->pos_z = NULL;
+            sys->vel_x = NULL;
+            sys->vel_y = NULL;
+            sys->vel_z = NULL;
+            sys->mass = NULL;
+            sys->ids = NULL;
+            
+            ERL_NIF_TERM term = enif_make_resource(env, sys);
+            enif_release_resource(sys);
+            return term;
+        }
+        
+        // Allocate system
         ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
-        sys->count = 0;
-        sys->capacity = 0;
-        sys->pos_x = NULL;
-        sys->pos_y = NULL;
-        sys->pos_z = NULL;
-        sys->vel_x = NULL;
-        sys->vel_y = NULL;
-        sys->vel_z = NULL;
-        sys->mass = NULL;
-        sys->ids = NULL;
+        sys->count = count;
+        sys->capacity = count;
+        
+        size_t size = count * sizeof(float);
+        sys->pos_x = aligned_malloc(size, 32);
+        sys->pos_y = aligned_malloc(size, 32);
+        sys->pos_z = aligned_malloc(size, 32);
+        sys->vel_x = aligned_malloc(size, 32);
+        sys->vel_y = aligned_malloc(size, 32);
+        sys->vel_z = aligned_malloc(size, 32);
+        sys->mass = aligned_malloc(size, 32);
+        sys->ids = malloc(count * sizeof(char*));
+        
+        if (!sys->pos_x || !sys->pos_y || !sys->pos_z ||
+            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->ids) {
+            printf("DEBUG C: allocation failed\n");
+            enif_release_resource(sys);
+            return enif_make_atom(env, "allocation_error");
+        }
+        
+        // Extract binary data from packed format
+        ERL_NIF_TERM pos_x_bin, pos_y_bin, pos_z_bin;
+        ERL_NIF_TERM vel_x_bin, vel_y_bin, vel_z_bin;
+        ERL_NIF_TERM mass_bin, ids_bin;
+        
+        if (!enif_get_map_value(env, argv[0], enif_make_atom(env, "pos_x"), &pos_x_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "pos_y"), &pos_y_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "pos_z"), &pos_z_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "vel_x"), &vel_x_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "vel_y"), &vel_y_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "vel_z"), &vel_z_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "mass"), &mass_bin) ||
+            !enif_get_map_value(env, argv[0], enif_make_atom(env, "ids"), &ids_bin)) {
+            printf("DEBUG C: ERROR - failed to extract binary fields\n");
+            enif_release_resource(sys);
+            return enif_make_badarg(env);
+        }
+        
+        printf("DEBUG C: extracted binary fields\n");
+        
+        // Get binary data
+        ErlNifBinary pos_x_binary, pos_y_binary, pos_z_binary;
+        ErlNifBinary vel_x_binary, vel_y_binary, vel_z_binary;
+        ErlNifBinary mass_binary, ids_binary;
+        
+        if (!enif_inspect_binary(env, pos_x_bin, &pos_x_binary) ||
+            !enif_inspect_binary(env, pos_y_bin, &pos_y_binary) ||
+            !enif_inspect_binary(env, pos_z_bin, &pos_z_binary) ||
+            !enif_inspect_binary(env, vel_x_bin, &vel_x_binary) ||
+            !enif_inspect_binary(env, vel_y_bin, &vel_y_binary) ||
+            !enif_inspect_binary(env, vel_z_bin, &vel_z_binary) ||
+            !enif_inspect_binary(env, mass_bin, &mass_binary) ||
+            !enif_inspect_binary(env, ids_bin, &ids_binary)) {
+            printf("DEBUG C: ERROR - failed to get binary data\n");
+            enif_release_resource(sys);
+            return enif_make_badarg(env);
+        }
+        
+        printf("DEBUG C: got binary data, copying to arrays\n");
+        
+        // Copy binary data to arrays
+        memcpy(sys->pos_x, pos_x_binary.data, pos_x_binary.size);
+        memcpy(sys->pos_y, pos_y_binary.data, pos_y_binary.size);
+        memcpy(sys->pos_z, pos_z_binary.data, pos_z_binary.size);
+        memcpy(sys->vel_x, vel_x_binary.data, vel_x_binary.size);
+        memcpy(sys->vel_y, vel_y_binary.data, vel_y_binary.size);
+        memcpy(sys->vel_z, vel_z_binary.data, vel_z_binary.size);
+        memcpy(sys->mass, mass_binary.data, mass_binary.size);
+        
+        // Extract IDs from binary format
+        printf("DEBUG C: extracting IDs from binary\n");
+        size_t ids_offset = 0;
+        for (uint32_t i = 0; i < count; i++) {
+            if (ids_offset + 4 > ids_binary.size) {
+                printf("DEBUG C: ERROR - IDs binary too small\n");
+                break;
+            }
+            
+            // Read length prefix (4 bytes)
+            uint32_t str_len;
+            memcpy(&str_len, ids_binary.data + ids_offset, 4);
+            ids_offset += 4;
+            
+            if (ids_offset + str_len > ids_binary.size) {
+                printf("DEBUG C: ERROR - ID string extends beyond binary\n");
+                break;
+            }
+            
+            // Allocate and copy string
+            sys->ids[i] = malloc(str_len + 1);
+            memcpy(sys->ids[i], ids_binary.data + ids_offset, str_len);
+            sys->ids[i][str_len] = '\0';
+            ids_offset += str_len;
+            
+            printf("DEBUG C: extracted ID[%u] = '%s'\n", i, sys->ids[i]);
+        }
+        
+        printf("DEBUG C: successfully created particle system with %u particles\n", count);
         
         ERL_NIF_TERM term = enif_make_resource(env, sys);
         enif_release_resource(sys);
         return term;
-    }
-    
-    // Allocate system
-    ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
-    sys->count = count;
-    sys->capacity = count;
-    
-    size_t size = count * sizeof(float);
-    sys->pos_x = aligned_malloc(size, 32);
-    sys->pos_y = aligned_malloc(size, 32);
-    sys->pos_z = aligned_malloc(size, 32);
-    sys->vel_x = aligned_malloc(size, 32);
-    sys->vel_y = aligned_malloc(size, 32);
-    sys->vel_z = aligned_malloc(size, 32);
-    sys->mass = aligned_malloc(size, 32);
-    sys->ids = malloc(count * sizeof(char*));
-    
-    if (!sys->pos_x || !sys->pos_y || !sys->pos_z ||
-        !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->ids) {
-        enif_release_resource(sys);
-        return enif_make_atom(env, "allocation_error");
-    }
-    
-    // Parse particles
-    ERL_NIF_TERM head, tail = particles_list;
-    uint32_t i = 0;
-    
-    while (enif_get_list_cell(env, tail, &head, &tail)) {
-        // Get position tuple
-        ERL_NIF_TERM pos;
-        if (!enif_get_map_value(env, head, enif_make_atom(env, "position"), &pos)) {
-            enif_release_resource(sys);
+        
+    } else if (has_particles) {
+        printf("DEBUG C: detected original format with particles field\n");
+        
+        // Get the particles list
+        ERL_NIF_TERM particles_list;
+        if (!enif_get_map_value(env, argv[0], enif_make_atom(env, "particles"), &particles_list)) {
+            printf("DEBUG C: ERROR - failed to get particles list\n");
             return enif_make_badarg(env);
         }
         
-        double px, py, pz;
-        enif_get_double(env, get_tuple_elem(env, pos, 0), &px);
-        enif_get_double(env, get_tuple_elem(env, pos, 1), &py);
-        enif_get_double(env, get_tuple_elem(env, pos, 2), &pz);
-        
-        // Get velocity tuple
-        ERL_NIF_TERM vel;
-        if (!enif_get_map_value(env, head, enif_make_atom(env, "velocity"), &vel)) {
-            enif_release_resource(sys);
+        // Get length of particles list
+        unsigned int particle_count;
+        if (!enif_get_list_length(env, particles_list, &particle_count)) {
+            printf("DEBUG C: ERROR - failed to get particles list length\n");
             return enif_make_badarg(env);
         }
         
-        double vx, vy, vz;
-        enif_get_double(env, get_tuple_elem(env, vel, 0), &vx);
-        enif_get_double(env, get_tuple_elem(env, vel, 1), &vy);
-        enif_get_double(env, get_tuple_elem(env, vel, 2), &vz);
+        printf("DEBUG C: particle count: %u\n", particle_count);
         
-        // Get mass
-        double m = get_float_from_map(env, head, "mass");
+        // Allow empty systems
+        if (particle_count == 0) {
+            printf("DEBUG C: creating empty system from particles format\n");
+            // Create empty system
+            ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            sys->count = 0;
+            sys->capacity = 0;
+            sys->pos_x = NULL;
+            sys->pos_y = NULL;
+            sys->pos_z = NULL;
+            sys->vel_x = NULL;
+            sys->vel_y = NULL;
+            sys->vel_z = NULL;
+            sys->mass = NULL;
+            sys->ids = NULL;
+            
+            ERL_NIF_TERM term = enif_make_resource(env, sys);
+            enif_release_resource(sys);
+            return term;
+        }
         
-        // Get ID
-        ERL_NIF_TERM id_term;
-        char id_str[256];
-        if (enif_get_map_value(env, head, enif_make_atom(env, "id"), &id_term)) {
-            if (enif_get_string(env, id_term, id_str, sizeof(id_str), ERL_NIF_LATIN1) > 0) {
-                sys->ids[i] = malloc(strlen(id_str) + 1);
-                strcpy(sys->ids[i], id_str);
-            } else {
-                sys->ids[i] = malloc(8);  // "default"
-                strcpy(sys->ids[i], "default");
+        // Allocate system
+        ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+        sys->count = particle_count;
+        sys->capacity = particle_count;
+        
+        size_t size = particle_count * sizeof(float);
+        sys->pos_x = aligned_malloc(size, 32);
+        sys->pos_y = aligned_malloc(size, 32);
+        sys->pos_z = aligned_malloc(size, 32);
+        sys->vel_x = aligned_malloc(size, 32);
+        sys->vel_y = aligned_malloc(size, 32);
+        sys->vel_z = aligned_malloc(size, 32);
+        sys->mass = aligned_malloc(size, 32);
+        sys->ids = malloc(particle_count * sizeof(char*));
+        
+        if (!sys->pos_x || !sys->pos_y || !sys->pos_z ||
+            !sys->vel_x || !sys->vel_y || !sys->vel_z || !sys->mass || !sys->ids) {
+            printf("DEBUG C: allocation failed for particles format\n");
+            enif_release_resource(sys);
+            return enif_make_atom(env, "allocation_error");
+        }
+        
+        // Extract particle data from list
+        ERL_NIF_TERM head, tail;
+        ERL_NIF_TERM current_list = particles_list;
+        
+        for (unsigned int i = 0; i < particle_count; i++) {
+            if (!enif_get_list_cell(env, current_list, &head, &tail)) {
+                printf("DEBUG C: ERROR - failed to get particle %u from list\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
             }
-        } else {
-            sys->ids[i] = malloc(8);  // "default"
-            strcpy(sys->ids[i], "default");
+            
+            // Extract particle fields
+            ERL_NIF_TERM pos_term, vel_term, mass_term, id_term;
+            if (!enif_get_map_value(env, head, enif_make_atom(env, "position"), &pos_term) ||
+                !enif_get_map_value(env, head, enif_make_atom(env, "velocity"), &vel_term) ||
+                !enif_get_map_value(env, head, enif_make_atom(env, "mass"), &mass_term) ||
+                !enif_get_map_value(env, head, enif_make_atom(env, "id"), &id_term)) {
+                printf("DEBUG C: ERROR - failed to extract particle %u fields\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Extract position tuple
+            const ERL_NIF_TERM* pos_arr;
+            int pos_arity;
+            if (!enif_get_tuple(env, pos_term, &pos_arity, &pos_arr) || pos_arity != 3) {
+                printf("DEBUG C: ERROR - invalid position tuple for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            double pos_x, pos_y, pos_z;
+            if (!enif_get_double(env, pos_arr[0], &pos_x) ||
+                !enif_get_double(env, pos_arr[1], &pos_y) ||
+                !enif_get_double(env, pos_arr[2], &pos_z)) {
+                printf("DEBUG C: ERROR - failed to get position values for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Extract velocity tuple
+            const ERL_NIF_TERM* vel_arr;
+            int vel_arity;
+            if (!enif_get_tuple(env, vel_term, &vel_arity, &vel_arr) || vel_arity != 3) {
+                printf("DEBUG C: ERROR - invalid velocity tuple for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            double vel_x, vel_y, vel_z;
+            if (!enif_get_double(env, vel_arr[0], &vel_x) ||
+                !enif_get_double(env, vel_arr[1], &vel_y) ||
+                !enif_get_double(env, vel_arr[2], &vel_z)) {
+                printf("DEBUG C: ERROR - failed to get velocity values for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Extract mass
+            double mass;
+            if (!enif_get_double(env, mass_term, &mass)) {
+                printf("DEBUG C: ERROR - failed to get mass for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Extract ID
+            char id_str[256];
+            if (!enif_get_string(env, id_term, id_str, sizeof(id_str), ERL_NIF_UTF8)) {
+                printf("DEBUG C: ERROR - failed to get ID for particle %u\n", i);
+                enif_release_resource(sys);
+                return enif_make_badarg(env);
+            }
+            
+            // Store in arrays
+            sys->pos_x[i] = (float)pos_x;
+            sys->pos_y[i] = (float)pos_y;
+            sys->pos_z[i] = (float)pos_z;
+            sys->vel_x[i] = (float)vel_x;
+            sys->vel_y[i] = (float)vel_y;
+            sys->vel_z[i] = (float)vel_z;
+            sys->mass[i] = (float)mass;
+            
+            // Allocate and copy ID
+            sys->ids[i] = malloc(strlen(id_str) + 1);
+            strcpy(sys->ids[i], id_str);
+            
+            printf("DEBUG C: extracted particle %u: id='%s', pos=(%f,%f,%f), vel=(%f,%f,%f), mass=%f\n",
+                   i, sys->ids[i], sys->pos_x[i], sys->pos_y[i], sys->pos_z[i],
+                   sys->vel_x[i], sys->vel_y[i], sys->vel_z[i], sys->mass[i]);
+            
+            current_list = tail;
         }
         
-        // Store
-        sys->pos_x[i] = (float)px;
-        sys->pos_y[i] = (float)py;
-        sys->pos_z[i] = (float)pz;
-        sys->vel_x[i] = (float)vx;
-        sys->vel_y[i] = (float)vy;
-        sys->vel_z[i] = (float)vz;
-        sys->mass[i] = (float)m;
-        i++;
+        printf("DEBUG C: successfully created particle system with %u particles from list format\n", particle_count);
+        
+        ERL_NIF_TERM term = enif_make_resource(env, sys);
+        enif_release_resource(sys);
+        return term;
+        
+    } else {
+        printf("DEBUG C: ERROR - unsupported format, expected 'count' or 'particles' field\n");
+        return enif_make_badarg(env);
     }
-    
-    ERL_NIF_TERM term = enif_make_resource(env, sys);
-    enif_release_resource(sys);
-    return term;
 }
 
 // Simulate N steps

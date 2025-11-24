@@ -22,7 +22,7 @@ all: $(NIF_SO)
 $(PRIV_DIR):
 	mkdir -p $(PRIV_DIR)
 
-$(NIF_SO): $(PRIV_DIR) brokenrecord_physics.c c_src/brokenrecord_physics.c
+$(NIF_SO): $(PRIV_DIR) c_src/brokenrecord_physics.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ c_src/brokenrecord_physics.c
 
 clean:
