@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation - brokenrecord.studio</title>
-    <meta name="description" content="Complete documentation for brokenrecord.studio - Physics as Code Programming Language">
+    <title>Open Source - brokenrecord.studio</title>
+    <meta name="description" content="Explore the source code of brokenrecord.studio - Physics as Code Programming Language">
     
     <!-- Marked.js for markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -15,10 +14,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-elixir.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-makefile.min.js"></script>
     
     <style>
         * {
@@ -193,8 +194,8 @@
             color: var(--text-secondary);
         }
         
-        /* Documentation Grid */
-        .docs-container {
+        /* Source Code Grid */
+        .source-container {
             display: grid;
             grid-template-columns: 250px 1fr;
             gap: 2rem;
@@ -222,15 +223,15 @@
             color: var(--text-primary);
         }
 
-        .doc-list {
+        .source-list {
             list-style: none;
         }
 
-        .doc-item {
+        .source-item {
             margin-bottom: 0.5rem;
         }
 
-        .doc-link {
+        .source-link {
             display: block;
             padding: 0.75rem 1rem;
             color: var(--text-secondary);
@@ -240,13 +241,13 @@
             font-size: 0.9rem;
         }
 
-        .doc-link:hover {
+        .source-link:hover {
             background: rgba(6, 182, 212, 0.1);
             color: var(--accent-cyan);
             transform: translateX(5px);
         }
 
-        .doc-link.active {
+        .source-link.active {
             background: rgba(6, 182, 212, 0.2);
             color: var(--accent-cyan);
             font-weight: 600;
@@ -400,6 +401,52 @@
             background: rgba(6, 182, 212, 0.05);
         }
 
+        /* File description styling */
+        .file-description {
+            background: rgba(168, 85, 247, 0.1);
+            border-left: 4px solid var(--accent-purple);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .file-description h4 {
+            color: var(--accent-purple);
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .file-description p {
+            margin-bottom: 0;
+            color: var(--text-secondary);
+        }
+
+        /* Language badge */
+        .language-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .language-elixir {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }
+
+        .language-c {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .language-makefile {
+            background: rgba(251, 146, 60, 0.2);
+            color: #fb923c;
+        }
+
         /* Footer */
         footer {
             background: var(--bg-dark);
@@ -442,7 +489,7 @@
                 font-size: 2.5rem;
             }
 
-            .docs-container {
+            .source-container {
                 grid-template-columns: 1fr;
             }
 
@@ -486,9 +533,9 @@
             <ul class="nav-links">
                 <li><a href="index.html">Home</a></li>
                 <li><a href="index.html#features">Features</a></li>
-                <li><a href="documentation.html" class="active">Docs</a></li>
+                <li><a href="documentation.html">Docs</a></li>
                 <li><a href="examples.html">Examples</a></li>
-                <li><a href="open-source.html">Source</a></li>
+                <li><a href="open-source.html" class="active">Source</a></li>
                 <li><a href="https://github.com/c-u-l8er/brokenrecord.studio">GitHub</a></li>
             </ul>
         </nav>
@@ -496,32 +543,37 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1>
-                <span class="gradient-text">Documentation</span>
+                <span class="gradient-text">Open Source Code</span>
             </h1>
             <p>
-                Complete guides and references for brokenrecord.studio - Physics as Code Programming Language
+                Explore the complete source code of brokenrecord.studio - from Elixir compiler to C native extensions
             </p>
             
             <!-- Search Bar -->
             <div class="search-container">
-                <input type="text" id="searchInput" class="search-input" placeholder="Search documentation...">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search source files...">
                 <div class="search-icon">🔍</div>
             </div>
         </section>
 
-        <!-- Documentation Content -->
-        <section class="docs-container">
+        <!-- Source Code Content -->
+        <section class="source-container">
             <!-- Sidebar -->
             <aside class="sidebar">
-                <h3>Documentation</h3>
-                <ul class="doc-list" id="docList">
-                    <!-- Documents will be loaded here -->
+                <h3>Elixir Library</h3>
+                <ul class="source-list" id="elixirList">
+                    <!-- Elixir files will be loaded here -->
+                </ul>
+                
+                <h3 style="margin-top: 2rem;">C Source</h3>
+                <ul class="source-list" id="cList">
+                    <!-- C files will be loaded here -->
                 </ul>
             </aside>
 
             <!-- Content Area -->
             <main class="content" id="contentArea">
-                <div class="loading">Loading documentation...</div>
+                <div class="loading">Loading source files...</div>
             </main>
         </section>
     </div>
@@ -557,130 +609,260 @@
         // Set dynamic copyright year
         document.getElementById('current-year').textContent = new Date().getFullYear();
         
-        // Documentation data
-        let docs = ['BENCHMARKING.md', 'BENCHMARKING_RESULTS.md', 'EXAMPLES_README.md', 'README.md', 'RUNBOOK.md'];
-        let currentDoc = null;
-        let allDocsContent = {};
+        // Source files data
+        let elixirFiles = [
+            'lib/broken_record/zero.ex',
+            'lib/broken_record/zero/compiler.ex',
+            'lib/broken_record/zero/nif.ex',
+            'lib/broken_record/zero/analyzer.ex',
+            'lib/broken_record/zero/codegen.ex',
+            'lib/broken_record/zero/dsl.ex',
+            'lib/broken_record/zero/ir.ex',
+            'lib/broken_record/zero/optimizer.ex',
+            'lib/broken_record/zero/runtime.ex'
+        ];
         
-        // Initialize documentation
-        async function initDocs() {
+        let cFiles = [
+            'c_src/brokenrecord_physics.c',
+            'c_src/Makefile'
+        ];
+        
+        let currentFile = null;
+        let allFilesContent = {};
+        
+        // File descriptions
+        const fileDescriptions = {
+            'lib/broken_record/zero.ex': {
+                title: 'Zero Compiler Main Module',
+                description: 'The main entry point for the zero-overhead physics compiler. Handles compile-time magic and module generation.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/compiler.ex': {
+                title: 'Compiler Pipeline',
+                description: 'The main compiler pipeline that transforms DSL → IR → Optimized IR → Native Code → Machine Code.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/nif.ex': {
+                title: 'Native Interface Functions',
+                description: 'Native Implemented Functions for physics simulation. Handles loading and calling C extensions.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/analyzer.ex': {
+                title: 'Type and Conservation Analyzer',
+                description: 'Performs type inference and conservation law analysis on the interaction net IR.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/codegen.ex': {
+                title: 'Code Generator',
+                description: 'Generates native C code from optimized IR and compiles it to machine code.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/dsl.ex': {
+                title: 'Domain Specific Language',
+                description: 'Defines the physics DSL for describing agents, interactions, and conservation laws.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/ir.ex': {
+                title: 'Intermediate Representation',
+                description: 'Defines the interaction net intermediate representation used by the compiler.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/optimizer.ex': {
+                title: 'Optimizer Passes',
+                description: 'Implements various optimization passes for the IR including memory layout and performance optimizations.',
+                language: 'elixir'
+            },
+            'lib/broken_record/zero/runtime.ex': {
+                title: 'Runtime Executor',
+                description: 'Runtime system for executing compiled physics simulations with native performance.',
+                language: 'elixir'
+            },
+            'c_src/brokenrecord_physics.c': {
+                title: 'Physics Engine (C)',
+                description: 'High-performance C implementation of physics kernels with SIMD optimization and NIF interface.',
+                language: 'c'
+            },
+            'c_src/Makefile': {
+                title: 'Build Configuration',
+                description: 'Makefile for compiling the C native extension with optimization flags and dependencies.',
+                language: 'makefile'
+            }
+        };
+        
+        // Initialize source files
+        async function initSourceFiles() {
             try {
-                console.log('Initializing documentation...');
+                console.log('Initializing source files...');
                 
                 // Initialize marked.js
                 if (!initializeMarked()) {
                     console.warn('Marked.js initialization failed, continuing with basic functionality');
                 }
                 
-                await loadAllDocs();
-                console.log('Documents loaded:', Object.keys(allDocsContent));
-                renderDocList();
+                await loadAllFiles();
+                console.log('Files loaded:', Object.keys(allFilesContent));
+                renderFileLists();
                 
-                // Load first document by default or check URL hash
+                // Load first file by default or check URL hash
                 const hash = window.location.hash.substring(1);
-                if (hash && docs.includes(hash)) {
-                    loadDocument(hash);
-                } else if (docs.length > 0) {
-                    loadDocument(docs[0]);
+                if (hash && (elixirFiles.includes(hash) || cFiles.includes(hash))) {
+                    loadFile(hash);
+                } else if (elixirFiles.length > 0) {
+                    loadFile(elixirFiles[0]);
                 }
             } catch (error) {
-                console.error('Error initializing documentation:', error);
-                showError(`Failed to initialize documentation: ${error.message}`);
+                console.error('Error initializing source files:', error);
+                showError(`Failed to initialize source files: ${error.message}`);
             }
         }
         
-        // Load all documents
-        async function loadAllDocs() {
-            console.log(`Starting to load ${docs.length} documents...`);
+        // Load all files
+        async function loadAllFiles() {
+            console.log(`Starting to load ${elixirFiles.length + cFiles.length} files...`);
             let loadedCount = 0;
             let failedCount = 0;
             
-            for (const doc of docs) {
+            // Load Elixir files
+            for (const file of elixirFiles) {
                 try {
-                    console.log(`Loading document: ${doc}`);
-                    const response = await fetch(`docs/${doc}`);
+                    console.log(`Loading file: ${file}`);
+                    const response = await fetch(file);
                     if (response.ok) {
                         const content = await response.text();
-                        allDocsContent[doc] = content;
+                        allFilesContent[file] = content;
                         loadedCount++;
-                        console.log(`Successfully loaded ${doc} (${content.length} characters)`);
+                        console.log(`Successfully loaded ${file} (${content.length} characters)`);
                     } else {
                         failedCount++;
-                        console.error(`Failed to load ${doc}: ${response.status} ${response.statusText}`);
+                        console.error(`Failed to load ${file}: ${response.status} ${response.statusText}`);
                     }
                 } catch (error) {
                     failedCount++;
-                    console.error(`Error loading ${doc}:`, error);
+                    console.error(`Error loading ${file}:`, error);
                 }
             }
             
-            console.log(`Document loading complete. Success: ${loadedCount}, Failed: ${failedCount}`);
+            // Load C files
+            for (const file of cFiles) {
+                try {
+                    console.log(`Loading file: ${file}`);
+                    const response = await fetch(file);
+                    if (response.ok) {
+                        const content = await response.text();
+                        allFilesContent[file] = content;
+                        loadedCount++;
+                        console.log(`Successfully loaded ${file} (${content.length} characters)`);
+                    } else {
+                        failedCount++;
+                        console.error(`Failed to load ${file}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    failedCount++;
+                    console.error(`Error loading ${file}:`, error);
+                }
+            }
+            
+            console.log(`File loading complete. Success: ${loadedCount}, Failed: ${failedCount}`);
             
             if (loadedCount === 0) {
-                throw new Error('No documents could be loaded');
+                throw new Error('No files could be loaded');
             }
         }
         
-        // Render document list in sidebar
-        function renderDocList() {
-            const docList = document.getElementById('docList');
-            docList.innerHTML = '';
+        // Render file lists in sidebar
+        function renderFileLists() {
+            const elixirList = document.getElementById('elixirList');
+            const cList = document.getElementById('cList');
             
-            docs.forEach(doc => {
+            elixirList.innerHTML = '';
+            cList.innerHTML = '';
+            
+            // Render Elixir files
+            elixirFiles.forEach(file => {
                 const li = document.createElement('li');
-                li.className = 'doc-item';
+                li.className = 'source-item';
                 
                 const a = document.createElement('a');
-                a.href = `#${doc}`;
-                a.className = 'doc-link';
-                a.textContent = formatDocTitle(doc);
+                a.href = `#${file}`;
+                a.className = 'source-link';
+                a.textContent = formatFileTitle(file);
                 a.addEventListener('click', (e) => {
                     e.preventDefault();
-                    loadDocument(doc);
-                    window.location.hash = doc;
+                    loadFile(file);
+                    window.location.hash = file;
                 });
                 
                 li.appendChild(a);
-                docList.appendChild(li);
+                elixirList.appendChild(li);
+            });
+            
+            // Render C files
+            cFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'source-item';
+                
+                const a = document.createElement('a');
+                a.href = `#${file}`;
+                a.className = 'source-link';
+                a.textContent = formatFileTitle(file);
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadFile(file);
+                    window.location.hash = file;
+                });
+                
+                li.appendChild(a);
+                cList.appendChild(li);
             });
         }
         
-        // Format document title
-        function formatDocTitle(filename) {
-            return filename
-                .replace('.md', '')
-                .replace(/-/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
+        // Format file title
+        function formatFileTitle(filepath) {
+            const desc = fileDescriptions[filepath];
+            if (desc) {
+                return desc.title;
+            }
+            return filepath.split('/').pop();
         }
         
-        // Load and display document
-        async function loadDocument(docName) {
+        // Load and display file
+        async function loadFile(fileName) {
             try {
-                console.log(`Loading document: ${docName}`);
+                console.log(`Loading file: ${fileName}`);
                 
-                if (!allDocsContent[docName]) {
-                    showError(`Document ${docName} not found or could not be loaded.`);
+                if (!allFilesContent[fileName]) {
+                    showError(`File ${fileName} not found or could not be loaded.`);
                     return;
                 }
                 
-                currentDoc = docName;
+                currentFile = fileName;
                 
                 // Update active state in sidebar
-                document.querySelectorAll('.doc-link').forEach(link => {
+                document.querySelectorAll('.source-link').forEach(link => {
                     link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${docName}`) {
+                    if (link.getAttribute('href') === `#${fileName}`) {
                         link.classList.add('active');
                     }
                 });
                 
-                // Check if marked is available
-                if (typeof marked === 'undefined') {
-                    showError('Markdown parser (marked.js) not loaded.');
-                    return;
+                // Get file description
+                const desc = fileDescriptions[fileName];
+                const language = desc ? desc.language : getFileLanguage(fileName);
+                
+                // Build content with description and code
+                let content = '';
+                
+                if (desc) {
+                    content += `<div class="file-description">`;
+                    content += `<h4>${desc.title} <span class="language-badge language-${language}">${language}</span></h4>`;
+                    content += `<p>${desc.description}</p>`;
+                    content += `</div>`;
                 }
                 
-                // Convert markdown to HTML and display
-                const content = markdownToHtml(allDocsContent[docName]);
+                // Add the code
+                const codeContent = allFilesContent[fileName];
+                content += `<pre><code class="language-${language}">${escapeHtml(codeContent)}</code></pre>`;
+                
                 document.getElementById('contentArea').innerHTML = content;
                 
                 // Re-run Prism.js highlighting for the newly added content
@@ -690,9 +872,17 @@
                     console.warn('Prism.js not loaded, syntax highlighting disabled.');
                 }
             } catch (error) {
-                console.error(`Error loading document ${docName}:`, error);
-                showError(`Failed to load document: ${error.message}`);
+                console.error(`Error loading file ${fileName}:`, error);
+                showError(`Failed to load file: ${error.message}`);
             }
+        }
+        
+        // Get file language from extension
+        function getFileLanguage(filename) {
+            if (filename.endsWith('.ex')) return 'elixir';
+            if (filename.endsWith('.c')) return 'c';
+            if (filename.includes('Makefile') || filename.endsWith('.mk')) return 'makefile';
+            return 'text';
         }
         
         // Initialize marked.js when available
@@ -744,25 +934,6 @@
             }
         }
         
-        // Convert markdown to HTML using Marked.js
-        function markdownToHtml(markdown) {
-            try {
-                if (typeof marked === 'undefined') {
-                    console.error('Marked.js not available, falling back to basic conversion');
-                    return `<pre>${escapeHtml(String(markdown || ''))}</pre>`;
-                }
-                
-                // Ensure markdown is a string
-                const markdownStr = typeof markdown === 'string' ? markdown : String(markdown || '');
-                
-                return marked.parse(markdownStr);
-            } catch (error) {
-                console.error('Error parsing markdown:', error);
-                const markdownStr = typeof markdown === 'string' ? markdown : String(markdown || '');
-                return `<div class="error">Error parsing markdown: ${error.message}</div><pre>${escapeHtml(markdownStr)}</pre>`;
-            }
-        }
-        
         // Escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -784,46 +955,81 @@
             const searchTerm = e.target.value.toLowerCase();
             
             if (!searchTerm) {
-                renderDocList();
+                renderFileLists();
                 return;
             }
             
-            const docList = document.getElementById('docList');
-            docList.innerHTML = '';
+            const elixirList = document.getElementById('elixirList');
+            const cList = document.getElementById('cList');
+            elixirList.innerHTML = '';
+            cList.innerHTML = '';
             
-            docs.forEach(doc => {
-                const title = formatDocTitle(doc).toLowerCase();
-                const content = allDocsContent[doc] ? allDocsContent[doc].toLowerCase() : '';
+            // Filter Elixir files
+            elixirFiles.forEach(file => {
+                const title = formatFileTitle(file).toLowerCase();
+                const content = allFilesContent[file] ? allFilesContent[file].toLowerCase() : '';
+                const desc = fileDescriptions[file];
+                const description = desc ? desc.description.toLowerCase() : '';
                 
-                if (title.includes(searchTerm) || content.includes(searchTerm)) {
+                if (title.includes(searchTerm) || content.includes(searchTerm) || description.includes(searchTerm)) {
                     const li = document.createElement('li');
-                    li.className = 'doc-item';
+                    li.className = 'source-item';
                     
                     const a = document.createElement('a');
-                    a.href = `#${doc}`;
-                    a.className = 'doc-link';
-                    a.textContent = formatDocTitle(doc);
+                    a.href = `#${file}`;
+                    a.className = 'source-link';
+                    a.textContent = formatFileTitle(file);
                     a.addEventListener('click', (e) => {
                         e.preventDefault();
-                        loadDocument(doc);
-                        window.location.hash = doc;
+                        loadFile(file);
+                        window.location.hash = file;
                     });
                     
                     li.appendChild(a);
-                    docList.appendChild(li);
+                    elixirList.appendChild(li);
                 }
             });
             
-            if (docList.innerHTML === '') {
-                docList.innerHTML = '<li class="doc-item"><div class="doc-link">No documents found</div></li>';
+            // Filter C files
+            cFiles.forEach(file => {
+                const title = formatFileTitle(file).toLowerCase();
+                const content = allFilesContent[file] ? allFilesContent[file].toLowerCase() : '';
+                const desc = fileDescriptions[file];
+                const description = desc ? desc.description.toLowerCase() : '';
+                
+                if (title.includes(searchTerm) || content.includes(searchTerm) || description.includes(searchTerm)) {
+                    const li = document.createElement('li');
+                    li.className = 'source-item';
+                    
+                    const a = document.createElement('a');
+                    a.href = `#${file}`;
+                    a.className = 'source-link';
+                    a.textContent = formatFileTitle(file);
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        loadFile(file);
+                        window.location.hash = file;
+                    });
+                    
+                    li.appendChild(a);
+                    cList.appendChild(li);
+                }
+            });
+            
+            if (elixirList.innerHTML === '') {
+                elixirList.innerHTML = '<li class="source-item"><div class="source-link">No Elixir files found</div></li>';
+            }
+            
+            if (cList.innerHTML === '') {
+                cList.innerHTML = '<li class="source-item"><div class="source-link">No C files found</div></li>';
             }
         });
         
         // Handle hash change
         window.addEventListener('hashchange', function() {
             const hash = window.location.hash.substring(1);
-            if (hash && docs.includes(hash)) {
-                loadDocument(hash);
+            if (hash && (elixirFiles.includes(hash) || cFiles.includes(hash))) {
+                loadFile(hash);
             }
         });
         
@@ -837,19 +1043,19 @@
             
             // Wait a bit for external libraries to load
             setTimeout(() => {
-                console.log('Initializing documentation after timeout...');
+                console.log('Initializing source files after timeout...');
                 console.log('Marked.js available after timeout:', typeof marked !== 'undefined');
                 console.log('Prism.js available after timeout:', typeof Prism !== 'undefined');
-                initDocs();
+                initSourceFiles();
             }, 500);
         });
         
         // Also initialize on window load as a fallback
         window.addEventListener('load', function() {
             console.log('Window loaded');
-            if (Object.keys(allDocsContent).length === 0) {
+            if (Object.keys(allFilesContent).length === 0) {
                 console.log('Fallback initialization');
-                initDocs();
+                initSourceFiles();
             }
         });
     </script>

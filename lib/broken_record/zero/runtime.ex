@@ -10,15 +10,60 @@ defmodule BrokenRecord.Zero.Runtime do
     dt = opts[:dt] || 0.01
     rules = opts[:rules] || []
 
+    # ENHANCED LOGGING: Track execution path decision
+    IO.puts("=== RUNTIME EXECUTION PATH ANALYSIS ===")
+    IO.puts("Initial state keys: #{inspect(Map.keys(initial_state))}")
+    IO.puts("Rules: #{inspect(rules)}")
+
+    # Check for actor model specific data
+    has_actors = Map.has_key?(initial_state, :actors)
+    has_messages = Map.has_key?(initial_state, :messages)
+    has_supervisors = Map.has_key?(initial_state, :supervisors)
+    has_scheduler = Map.has_key?(initial_state, :scheduler)
+    is_actor_model = has_actors and has_messages and has_supervisors and has_scheduler
+
+    IO.puts("Actor model detection:")
+    IO.puts("  has_actors: #{has_actors}")
+    IO.puts("  has_messages: #{has_messages}")
+    IO.puts("  has_supervisors: #{has_supervisors}")
+    IO.puts("  has_scheduler: #{has_scheduler}")
+    IO.puts("  is_actor_model: #{is_actor_model}")
+
+    # Check for physics data
+    has_particles = Map.has_key?(initial_state, :particles)
+    has_bodies = Map.has_key?(initial_state, :bodies)
+    has_molecules = Map.has_key?(initial_state, :molecules)
+    is_physics_model = has_particles or has_bodies or has_molecules
+
+    IO.puts("Physics model detection:")
+    IO.puts("  has_particles: #{has_particles}")
+    IO.puts("  has_bodies: #{has_bodies}")
+    IO.puts("  has_molecules: #{has_molecules}")
+    IO.puts("  is_physics_model: #{is_physics_model}")
+
     # NEW: Actually use the native code!
-    case should_use_native?(initial_state) do
+    use_native = should_use_native?(initial_state)
+    IO.puts("should_use_native? result: #{use_native}")
+
+    case use_native do
       true ->
         # Fast path: Native SIMD execution
+        IO.puts("EXECUTION PATH: Native NIF selected")
+        IO.puts("=== END ANALYSIS ===")
         native_execute(initial_state, dt, steps, rules)
 
       false ->
         # Fallback: Interpreted (development/debugging)
-        IO.warn("Native code not available or incompatible data, using interpreted fallback (SLOW)")
+        IO.puts("EXECUTION PATH: Interpreted fallback selected")
+        reason = cond do
+          is_actor_model -> "Actor model data structure (incompatible with physics NIF)"
+          not native_available?() -> "NIF not available or not loaded"
+          has_walls?(initial_state) -> "Walls detected (NIF doesn't support walls yet)"
+          not has_physics_data?(initial_state) -> "No physics data detected"
+          true -> "Unknown reason"
+        end
+        IO.puts("REASON: #{reason}")
+        IO.puts("=== END ANALYSIS ===")
         interpreted_simulate(initial_state, dt, steps, rules)
     end
   end
