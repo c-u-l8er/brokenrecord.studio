@@ -78,7 +78,7 @@ defmodule BrokenRecord.Zero.Runtime do
       IO.puts("DEBUG: About to call NIF.to_elixir_state")
       raw_result = BrokenRecord.Zero.NIF.to_elixir_state(sys_resource)
       IO.puts("DEBUG: NIF.to_elixir_state returned: #{inspect(raw_result)}")
-      result = from_native(raw_result, layout)
+      result = from_native(raw_result, layout, state)
       IO.inspect(result, label: "DEBUG: native_execute - unpacked result")
       IO.puts("DEBUG: native_execute - conversion completed")
       IO.puts("DEBUG: native_execute - result structure: #{inspect(result, pretty: true)}")
@@ -162,15 +162,15 @@ defmodule BrokenRecord.Zero.Runtime do
     binary_data
   end
 
-  def from_native(result, layout) do
+  def from_native(result, layout, original_state \\ nil) do
     # Unpack native arrays back to Elixir structures
     case layout.strategy do
-      :soa -> unpack_soa(result)
-      :aos -> unpack_aos(result)
+      :soa -> unpack_soa(result, original_state)
+      :aos -> unpack_aos(result, original_state)
     end
   end
 
-  defp unpack_soa(result) do
+  defp unpack_soa(result, original_state \\ nil) do
     IO.inspect("DEBUG: unpack_soa - result keys: #{inspect(Map.keys(result))}")
     # Handle both map with count and list of particles
     case result do
@@ -221,26 +221,42 @@ defmodule BrokenRecord.Zero.Runtime do
       %{particles: particles} ->
         # Already unpacked format
         IO.inspect("DEBUG: unpack_soa - already unpacked format")
-        %{particles: particles, walls: Map.get(result, :walls, [])}
+        result = %{particles: particles, walls: Map.get(result, :walls, [])}
+        merge_original_state(result, original_state)
 
       %{bodies: bodies} ->
         IO.inspect("DEBUG: unpack_soa - preserving bodies format")
-        %{bodies: bodies, walls: Map.get(result, :walls, [])}
+        result = %{bodies: bodies, walls: Map.get(result, :walls, [])}
+        merge_original_state(result, original_state)
 
       %{molecules: molecules} ->
         IO.inspect("DEBUG: unpack_soa - preserving molecules format")
-        %{molecules: molecules, walls: Map.get(result, :walls, [])}
+        result = result
+        merge_original_state(result, original_state)
 
       _ ->
         # Fallback
         IO.inspect("DEBUG: unpack_soa - fallback case")
-        %{particles: []}
+        result = %{particles: []}
+        merge_original_state(result, original_state)
     end
   end
 
-  defp unpack_aos(_result) do
+  defp unpack_aos(_result, original_state \\ nil) do
     # Unpack interleaved struct array
-    %{particles: []}
+    result = %{particles: []}
+    merge_original_state(result, original_state)
+  end
+
+  # Merge non-particle keys from original state back into result
+  defp merge_original_state(result, nil), do: result
+  defp merge_original_state(result, original_state) do
+    particle_keys = [:particles, :molecules, :bodies, :walls]
+    non_particle_keys = Enum.reject(Map.keys(original_state), fn key -> key in particle_keys end)
+
+    Enum.reduce(non_particle_keys, result, fn key, acc ->
+      Map.put(acc, key, Map.get(original_state, key))
+    end)
   end
 
   defp get_float(binary, index) do
@@ -253,7 +269,8 @@ defmodule BrokenRecord.Zero.Runtime do
     # Skip to the string at the given index
     {_, remaining} = skip_strings(binary_data, index)
     <<str_len::32-unsigned-native, str_bytes::binary-size(str_len), _rest::binary>> = remaining
-    str = :erlang.binary_to_term(str_bytes)
+    # Return binary directly - Elixir will handle it as string when needed
+    str = str_bytes
     IO.inspect("DEBUG: get_string - index: #{index}, value: #{str}")
     str
   end

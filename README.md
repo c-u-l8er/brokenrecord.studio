@@ -132,6 +132,9 @@ MIT © brokenrecord.studio
 ## Quick Commands
 
 ```sh
-make -C c_src                    # Compile the NIF
-mkdir -p priv && cp c_src/brokenrecord_physics.so priv/  # Copy to priv directory
+# Compile the NIF
+make -C c_src                    
+
+# Copy to priv directory
+mkdir -p priv && cp c_src/brokenrecord_physics.so priv/  
 ```

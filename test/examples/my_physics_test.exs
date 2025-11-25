@@ -3,6 +3,17 @@ defmodule Examples.MyPhysicsTest do
   alias MyPhysics.CollisionWorld
   import Examples.TestHelper
 
+  defp find_particle_by_id(particles, id) do
+    Enum.find(particles, fn particle ->
+      cond do
+        particle.id == id -> true
+        is_binary(particle.id) and particle.id == id -> true
+        is_list(particle.id) and List.to_string(particle.id) == id -> true
+        true -> false
+      end
+    end)
+  end
+
   defp mock_wall(opts \\ []) do
     %{
       id: Keyword.get(opts, :id, "test_wall"),
@@ -74,8 +85,8 @@ defmodule Examples.MyPhysicsTest do
       initial = %{particles: [p1, p2], walls: []}
       # Use no-gravity integration for collision test
       final = MyPhysics.CollisionWorld.simulate(initial, steps: 1000, dt: 0.001, rules: [:integrate_no_gravity])
-      p1_final = Enum.find(final.particles, &(&1.id == "p1"))
-      p2_final = Enum.find(final.particles, &(&1.id == "p2"))
+      p1_final = find_particle_by_id(final.particles, "p1")
+      p2_final = find_particle_by_id(final.particles, "p2")
       assert_vectors_equal(p1_final.velocity, {-1.0, 0.0, 0.0}, 0.3)
       assert_vectors_equal(p2_final.velocity, {1.0, 0.0, 0.0}, 0.3)
     end

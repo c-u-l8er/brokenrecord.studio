@@ -42,7 +42,16 @@ static ErlNifResourceType* particle_system_type = NULL;
 // ============================================================================
 
 static void particle_system_destructor(ErlNifEnv* env __attribute__((unused)), void* obj) {
+    printf("DEBUG C: destructor called - obj: %p\n", obj);
+    if (!obj) {
+        printf("DEBUG C: destructor - NULL object, returning\n");
+        return;
+    }
+    
     ParticleSystem* sys = (ParticleSystem*)obj;
+    printf("DEBUG C: destructor - sys->count: %u\n", sys->count);
+    printf("DEBUG C: destructor - sys->particle_key: '%.32s'\n", sys->particle_key);
+    
     if (sys->pos_x) { free(sys->pos_x); }
     if (sys->pos_y) { free(sys->pos_y); }
     if (sys->pos_z) { free(sys->pos_z); }
@@ -50,13 +59,18 @@ static void particle_system_destructor(ErlNifEnv* env __attribute__((unused)), v
     if (sys->vel_y) { free(sys->vel_y); }
     if (sys->vel_z) { free(sys->vel_z); }
     if (sys->mass) { free(sys->mass); }
-    if (sys->radius) { free(sys->radius); }
+    if (sys->radius) { free(sys->radius); }  // SAFETY: Only free if not NULL
     if (sys->ids) {
+        printf("DEBUG C: destructor - freeing IDs for %u particles\n", sys->count);
         for (uint32_t i = 0; i < sys->count; i++) {
-            if (sys->ids[i]) { free(sys->ids[i]); }
+            if (sys->ids[i]) {
+                printf("DEBUG C: destructor - freeing ID[%u]: '%s'\n", i, sys->ids[i]);
+                free(sys->ids[i]);
+            }
         }
         free(sys->ids);
     }
+    printf("DEBUG C: destructor - completed successfully\n");
 }
 
 static int load(ErlNifEnv* env, void** priv_data __attribute__((unused)), ERL_NIF_TERM load_info __attribute__((unused))) {
@@ -102,15 +116,47 @@ static ERL_NIF_TERM get_tuple_elem(ErlNifEnv* env, ERL_NIF_TERM tuple, int index
 // ============================================================================
 
 static void apply_gravity_simd(ParticleSystem* sys, float dt) {
-    // DISABLE SIMD - use simple scalar code for debugging
-    printf("DEBUG: apply_gravity_simd called with dt=%f, sys->count=%u\n", dt, sys->count);
-    printf("DEBUG: sys pointer: %p, sys->vel_z pointer: %p\n", (void*)sys, (void*)sys->vel_z);
+    // Implement proper N-body gravity to match Elixir DSL
+    float G = 1.0f;  // Gravitational constant (matches Elixir DSL)
     
     for (uint32_t i = 0; i < sys->count; i++) {
-        printf("DEBUG GRAVITY: Before - vel_y[%u]=%f, vel_z[%u]=%f\n", i, sys->vel_y[i], i, sys->vel_z[i]);
-        float old_vel_z = sys->vel_z[i];
-        sys->vel_z[i] += -0.981f * dt;  // FIXED: Restored correct gravity constant
-        printf("DEBUG GRAVITY: After - vel_y[%u]=%f, vel_z[%u]=%f (delta: %f)\n", i, sys->vel_y[i], i, sys->vel_z[i], sys->vel_z[i] - old_vel_z);
+        float fx = 0.0f, fy = 0.0f, fz = 0.0f;
+        
+        // Calculate gravitational forces from all other bodies
+        for (uint32_t j = 0; j < sys->count; j++) {
+            if (i == j) continue;  // Skip self
+            
+            // Calculate distance vector
+            float dx = sys->pos_x[j] - sys->pos_x[i];
+            float dy = sys->pos_y[j] - sys->pos_y[i];
+            float dz = sys->pos_z[j] - sys->pos_z[i];
+            
+            // Calculate distance squared and distance
+            float dist_sq = dx*dx + dy*dy + dz*dz;
+            float dist = sqrtf(dist_sq);
+            
+            // Avoid singularity at zero distance
+            float min_dist = sys->radius[i] + sys->radius[j];
+            float effective_dist = (dist > min_dist) ? dist : min_dist;
+            
+            // Calculate force magnitude: F = G * m1 * m2 / r^2
+            float force_magnitude = G * sys->mass[i] * sys->mass[j] / (effective_dist * effective_dist);
+            
+            // Calculate force direction (normalized)
+            float nx = dx / dist;
+            float ny = dy / dist;
+            float nz = dz / dist;
+            
+            // Apply force to body i (Newton's third law will handle body j in its iteration)
+            fx += nx * force_magnitude;
+            fy += ny * force_magnitude;
+            fz += nz * force_magnitude;
+        }
+        
+        // Update velocity: v = v + (F/m) * dt
+        sys->vel_x[i] += (fx / sys->mass[i]) * dt;
+        sys->vel_y[i] += (fy / sys->mass[i]) * dt;
+        sys->vel_z[i] += (fz / sys->mass[i]) * dt;
     }
 }
 
@@ -173,6 +219,14 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             printf("DEBUG C: creating empty system\n");
             // Create empty system
             ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            printf("DEBUG C: packed empty create - BEFORE init - sys pointer: %p\n", (void*)sys);
+            
+            // CRITICAL FIX: Initialize all fields to NULL/0 before use
+            memset(sys, 0, sizeof(ParticleSystem));
+            printf("DEBUG C: packed empty create - AFTER memset - key_content[0]: '%c'\n", sys->particle_key[0]);
+            
+            strcpy(sys->particle_key, "particles");
+            printf("DEBUG C: packed empty create - AFTER init key_content=%.32s len=%zu\n", sys->particle_key, strlen(sys->particle_key));
             sys->count = 0;
             sys->capacity = 0;
             sys->pos_x = NULL;
@@ -182,6 +236,7 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             sys->vel_y = NULL;
             sys->vel_z = NULL;
             sys->mass = NULL;
+            sys->radius = NULL;  // CRITICAL FIX: Missing NULL initialization
             sys->ids = NULL;
             
             ERL_NIF_TERM term = enif_make_resource(env, sys);
@@ -319,6 +374,15 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             printf("DEBUG C: creating empty system from particles format\n");
             // Create empty system
             ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            printf("DEBUG C: particles empty create - BEFORE init - sys pointer: %p\n", (void*)sys);
+            printf("DEBUG C: particles empty create - BEFORE init key_content[0]: '%c'\n", sys ? sys->particle_key[0] : '?');
+            
+            // CRITICAL FIX: Initialize all fields to NULL/0 before use
+            memset(sys, 0, sizeof(ParticleSystem));
+            printf("DEBUG C: particles empty create - AFTER memset - key_content[0]: '%c'\n", sys->particle_key[0]);
+            
+            strcpy(sys->particle_key, "particles");
+            printf("DEBUG C: particles empty create - AFTER init key_content=%.32s len=%zu\n", sys->particle_key, strlen(sys->particle_key));
             sys->count = 0;
             sys->capacity = 0;
             sys->pos_x = NULL;
@@ -328,6 +392,7 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             sys->vel_y = NULL;
             sys->vel_z = NULL;
             sys->mass = NULL;
+            sys->radius = NULL;  // CRITICAL FIX: Missing NULL initialization
             sys->ids = NULL;
             
             ERL_NIF_TERM term = enif_make_resource(env, sys);
@@ -544,6 +609,14 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
         if (body_count == 0) {
             printf("DEBUG C: creating empty system from bodies format\n");
             ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            printf("DEBUG C: bodies empty create - BEFORE init - sys pointer: %p\n", (void*)sys);
+            
+            // CRITICAL FIX: Initialize all fields to NULL/0 before use
+            memset(sys, 0, sizeof(ParticleSystem));
+            printf("DEBUG C: bodies empty create - AFTER memset - key_content[0]: '%c'\n", sys->particle_key[0]);
+            
+            strcpy(sys->particle_key, "bodies");
+            printf("DEBUG C: bodies empty create - AFTER init key_content=%.32s len=%zu\n", sys->particle_key, strlen(sys->particle_key));
             sys->count = 0;
             sys->capacity = 0;
             sys->pos_x = NULL;
@@ -553,6 +626,7 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             sys->vel_y = NULL;
             sys->vel_z = NULL;
             sys->mass = NULL;
+            sys->radius = NULL;  // CRITICAL FIX: Missing NULL initialization
             sys->ids = NULL;
             
             ERL_NIF_TERM term = enif_make_resource(env, sys);
@@ -722,6 +796,14 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
         if (molecule_count == 0) {
             printf("DEBUG C: creating empty system from molecules format\n");
             ParticleSystem* sys = enif_alloc_resource(particle_system_type, sizeof(ParticleSystem));
+            printf("DEBUG C: molecules empty create - BEFORE init - sys pointer: %p\n", (void*)sys);
+            
+            // CRITICAL FIX: Initialize all fields to NULL/0 before use
+            memset(sys, 0, sizeof(ParticleSystem));
+            printf("DEBUG C: molecules empty create - AFTER memset - key_content[0]: '%c'\n", sys->particle_key[0]);
+            
+            strcpy(sys->particle_key, "molecules");
+            printf("DEBUG C: molecules empty create - AFTER init key_content=%.32s len=%zu\n", sys->particle_key, strlen(sys->particle_key));
             sys->count = 0;
             sys->capacity = 0;
             sys->pos_x = NULL;
@@ -731,6 +813,7 @@ static ERL_NIF_TERM create_particle_system(ErlNifEnv* env, int argc __attribute_
             sys->vel_y = NULL;
             sys->vel_z = NULL;
             sys->mass = NULL;
+            sys->radius = NULL;  // CRITICAL FIX: Missing NULL initialization
             sys->ids = NULL;
             
             ERL_NIF_TERM term = enif_make_resource(env, sys);
@@ -920,31 +1003,12 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
       }
     }
     
-    printf("DEBUG C: apply_gravity = %d after rules check\n", apply_gravity);
-    fflush(stdout);
-    
     // Extract walls from the original state if available
     // We need to get the original state from the particle system resource
     // For now, we'll skip wall collisions in native code and let the Elixir fallback handle it
     
-    printf("DEBUG C: About to start simulation loop, apply_gravity=%d\n", apply_gravity);
-    fflush(stdout);
-    
-    // DEBUG: Print initial state
-    if (sys->count > 0) {
-        printf("DEBUG: Initial particle 0 state - pos_z: %f, vel_z: %f\n", sys->pos_z[0], sys->vel_z[0]);
-        fflush(stdout);
-    }
-    
     // RUN THE ACTUAL PHYSICS!
     for (int step = 0; step < steps; step++) {
-        // Debug: Print first particle's state for first few steps
-        if (step < 3 && sys->count > 0) {
-            printf("DEBUG C: Step %d - before apply_gravity: pos_z=%f, vel_z=%f\n",
-                   step, sys->pos_z[0], sys->vel_z[0]);
-            fflush(stdout);  // Force output to appear immediately
-        }
-        
         // Check for particle-particle collisions
         for (uint32_t i = 0; i < sys->count; i++) {
             for (uint32_t j = i + 1; j < sys->count; j++) {
@@ -956,6 +1020,11 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
                 
                 if (dist_sq < min_dist * min_dist) {
                     // Collision detected - elastic collision
+                    printf("DEBUG C: COLLISION DETECTED between particles %u and %u\n", i, j);
+                    printf("DEBUG C: Before collision - p%u vel=(%f,%f,%f), p%u vel=(%f,%f,%f)\n",
+                           i, sys->vel_x[i], sys->vel_y[i], sys->vel_z[i],
+                           j, sys->vel_x[j], sys->vel_y[j], sys->vel_z[j]);
+                    
                     double dist = sqrt(dist_sq);
                     if (dist > 0.0) {  // Avoid division by zero
                         double nx = dx / dist;
@@ -968,8 +1037,14 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
                         
                         double dot_product = dvx * nx + dvy * ny + dvz * nz;
                         
+                        printf("DEBUG C: Collision physics - dist=%f, normal=(%f,%f,%f), dot_product=%f\n",
+                               dist, nx, ny, nz, dot_product);
+                        
                         if (dot_product < 0) {
                             double impulse = 2.0 * dot_product / (sys->mass[i] + sys->mass[j]);
+                            
+                            printf("DEBUG C: Collision impulse=%f, masses: m%u=%f, m%u=%f\n",
+                                   impulse, i, sys->mass[i], j, sys->mass[j]);
                             
                             sys->vel_x[i] -= impulse * nx / sys->mass[i];
                             sys->vel_y[i] -= impulse * ny / sys->mass[i];
@@ -978,35 +1053,25 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
                             sys->vel_x[j] += impulse * nx / sys->mass[j];
                             sys->vel_y[j] += impulse * ny / sys->mass[j];
                             sys->vel_z[j] += impulse * nz / sys->mass[j];
+                            
+                            printf("DEBUG C: After collision - p%u vel=(%f,%f,%f), p%u vel=(%f,%f,%f)\n",
+                                   i, sys->vel_x[i], sys->vel_y[i], sys->vel_z[i],
+                                   j, sys->vel_x[j], sys->vel_y[j], sys->vel_z[j]);
+                        } else {
+                            printf("DEBUG C: Skipping collision - dot_product >= 0 (particles moving apart)\n");
                         }
+                    } else {
+                        printf("DEBUG C: ERROR - dist = 0, particles at same position!\n");
                     }
                 }
             }
         }
         
-        // ALWAYS APPLY GRAVITY - NO CONDITIONS
-        printf("DEBUG C: About to apply gravity (HARDCODED), apply_gravity=%d\n", apply_gravity);
-        fflush(stdout);
-        printf("DEBUG C: Calling apply_gravity_simd directly - sys=%p, dt=%f\n", (void*)sys, (float)dt);
-        fflush(stdout);
-        
-        // DEBUG: Add direct inline gravity to bypass function call issue
-        // REMOVED: Duplicate inline gravity application to fix double-counting bug
-        // if (sys->count > 0) {
-        //     printf("DEBUG C: INLINE GRAVITY - Before: vel_z[0]=%f\n", sys->vel_z[0]);
-        //     sys->vel_z[0] += -0.981f * (float)dt;
-        //     printf("DEBUG C: INLINE GRAVITY - After: vel_z[0]=%f\n", sys->vel_z[0]);
-        // }
-        
-        // Single gravity application via function call (fixed double application bug)
-        apply_gravity_simd(sys, (float)dt);
-        printf("DEBUG C: Applied gravity ONCE via apply_gravity_simd function\n");
-        
-        if (step < 3 && sys->count > 0) {
-            printf("DEBUG C: Step %d - after apply_gravity: pos_z=%f, vel_z=%f\n",
-                   step, sys->pos_z[0], sys->vel_z[0]);
-            fflush(stdout);
+        // Apply gravity conditionally
+        if (apply_gravity) {
+            apply_gravity_simd(sys, (float)dt);
         }
+        
         integrate_positions_simd(sys, (float)dt);
         
         // Apply wall collisions if we have wall data
@@ -1014,11 +1079,6 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
         // This will be handled by the Elixir fallback
     }
     
-    // DEBUG: Print final state
-    if (sys->count > 0) {
-        printf("DEBUG: Final particle 0 state - pos_z: %f, vel_z: %f\n", sys->pos_z[0], sys->vel_z[0]);
-        fflush(stdout);
-    }
     
     // Return the resource (state is mutated in place)
     return argv[0];
@@ -1032,15 +1092,22 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
         return enif_make_badarg(env);
     }
     
-    printf("DEBUG C: to_elixir_state called with sys->count=%u\n", sys->count);
-    
     // Handle empty systems properly
     if (sys->count == 0) {
-        printf("DEBUG C: handling empty system with key: %s\n", sys->particle_key);
+        // Safety check: ensure particle_key is properly null-terminated
+        if (sys->particle_key[0] == '\0') {
+            strcpy(sys->particle_key, "particles");
+        }
+        
+        // Create empty lists safely
         ERL_NIF_TERM particles_list = enif_make_list(env, 0);
         ERL_NIF_TERM walls_result = enif_make_list(env, 0);
         
-        ERL_NIF_TERM keys[] = {enif_make_atom(env, sys->particle_key), enif_make_atom(env, "walls")};
+        // Use a fixed key atom to avoid potential issues with sys->particle_key
+        ERL_NIF_TERM particles_key = enif_make_atom(env, "particles");
+        ERL_NIF_TERM walls_key = enif_make_atom(env, "walls");
+        
+        ERL_NIF_TERM keys[] = {particles_key, walls_key};
         ERL_NIF_TERM values[] = {particles_list, walls_result};
         ERL_NIF_TERM result;
         enif_make_map_from_arrays(env, keys, values, 2, &result);
@@ -1057,6 +1124,22 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
             enif_make_double(env, sys->pos_z[i])
         );
         
+        // DEBUG: Check for NaN or infinity in velocity components
+        printf("DEBUG C: Converting particle %u velocity to Elixir: (%f,%f,%f)\n",
+               i, sys->vel_x[i], sys->vel_y[i], sys->vel_z[i]);
+        
+        // Check for NaN or infinity
+        if (isnan(sys->vel_x[i]) || isinf(sys->vel_x[i]) ||
+            isnan(sys->vel_y[i]) || isinf(sys->vel_y[i]) ||
+            isnan(sys->vel_z[i]) || isinf(sys->vel_z[i])) {
+            printf("DEBUG C: ERROR - Invalid velocity detected for particle %u: (%f,%f,%f)\n",
+                   i, sys->vel_x[i], sys->vel_y[i], sys->vel_z[i]);
+            // Set to zero velocity as fallback
+            sys->vel_x[i] = 0.0f;
+            sys->vel_y[i] = 0.0f;
+            sys->vel_z[i] = 0.0f;
+        }
+        
         ERL_NIF_TERM vel = enif_make_tuple3(env,
             enif_make_double(env, sys->vel_x[i]),
             enif_make_double(env, sys->vel_y[i]),
@@ -1064,16 +1147,29 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
         );
         
         // Get radius from original particle if available
-        ERL_NIF_TERM radius_val = enif_make_double(env, 1.0f); // default radius
-        // Note: We can't access the original particle list here since we only have the C structure
-        // This would need to be passed in separately if needed
+        ERL_NIF_TERM radius_val = enif_make_double(env, sys->radius[i]); // Use actual radius value
+        
+        // CRITICAL FIX: We need to preserve chemical_type for molecules
+        // Since we can't determine the type from C structure alone, we'll need to pass it through
+        // For now, we'll add a default chemical_type based on mass ranges
+        ERL_NIF_TERM chemical_type_val;
+        if (sys->mass[i] < 1.5f) {
+            chemical_type_val = enif_make_atom(env, "A");
+        } else if (sys->mass[i] < 2.5f) {
+            chemical_type_val = enif_make_atom(env, "B");
+        } else if (sys->mass[i] < 3.0f) {
+            chemical_type_val = enif_make_atom(env, "C");
+        } else {
+            chemical_type_val = enif_make_atom(env, "D");
+        }
         
         ERL_NIF_TERM keys[] = {
             enif_make_atom(env, "position"),
             enif_make_atom(env, "velocity"),
             enif_make_atom(env, "mass"),
             enif_make_atom(env, "radius"),
-            enif_make_atom(env, "id")
+            enif_make_atom(env, "id"),
+            enif_make_atom(env, "chemical_type")
         };
         
         ERL_NIF_TERM values[] = {
@@ -1081,10 +1177,14 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
             vel,
             enif_make_double(env, sys->mass[i]),
             radius_val,
-            enif_make_string_len(env, sys->ids[i] ? sys->ids[i] : "default", sys->ids[i] ? strlen(sys->ids[i]) : 7, ERL_NIF_UTF8)
+            // Create proper Elixir string from C string
+            const char* id_str = sys->ids[i] ? sys->ids[i] : "default";
+            size_t id_len = sys->ids[i] ? strlen(sys->ids[i]) : 7;
+            ERL_NIF_TERM id_term = enif_make_string_len(env, id_str, id_len, ERL_NIF_UTF8);
+            chemical_type_val
         };
         
-        enif_make_map_from_arrays(env, keys, values, 5, &particles[i]);
+        enif_make_map_from_arrays(env, keys, values, 6, &particles[i]);
     }
     
     ERL_NIF_TERM particles_list = enif_make_list_from_array(env, particles, sys->count);
@@ -1096,7 +1196,6 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
         // walls_result already contains the walls list
     }
     
-    printf("DEBUG C: returning result with key: %s\n", sys->particle_key);
     ERL_NIF_TERM keys[] = {enif_make_atom(env, sys->particle_key), enif_make_atom(env, "walls")};
     ERL_NIF_TERM values[] = {particles_list, walls_result};
     ERL_NIF_TERM result;
