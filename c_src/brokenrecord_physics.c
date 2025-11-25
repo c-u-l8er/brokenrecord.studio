@@ -905,13 +905,22 @@ static ERL_NIF_TERM native_integrate(ErlNifEnv* env, int argc __attribute__((unu
         return enif_make_badarg(env);
     }
     
-    // Check if we have a 4th argument (rules) - if present, check if it contains :integrate_no_gravity
-    // Default is to apply gravity
-    apply_gravity = 1;
+    // Parse rules if present
+    if (argc >= 4) {
+      ERL_NIF_TERM rules = argv[3];
+      ERL_NIF_TERM head, tail;
+      ERL_NIF_TERM current_rules = rules;
+      char atom_name[64];
+      while (enif_get_list_cell(env, current_rules, &head, &tail)) {
+        if (enif_get_atom(env, head, atom_name, sizeof(atom_name), ERL_NIF_LATIN1) && strcmp(atom_name, "integrate_no_gravity") == 0) {
+          apply_gravity = 0;
+          break;
+        }
+        current_rules = tail;
+      }
+    }
     
-    // ALWAYS APPLY GRAVITY - NO CONDITIONS
-    apply_gravity = 1;
-    printf("DEBUG C: apply_gravity set to 1 (no conditions)\n");
+    printf("DEBUG C: apply_gravity = %d after rules check\n", apply_gravity);
     fflush(stdout);
     
     // Extract walls from the original state if available

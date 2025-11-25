@@ -218,10 +218,18 @@ defmodule BrokenRecord.Zero.Runtime do
 
         %{particles: particles}
 
-      %{particles: _particles} ->
+      %{particles: particles} ->
         # Already unpacked format
         IO.inspect("DEBUG: unpack_soa - already unpacked format")
-        result
+        %{particles: particles, walls: Map.get(result, :walls, [])}
+
+      %{bodies: bodies} ->
+        IO.inspect("DEBUG: unpack_soa - preserving bodies format")
+        %{bodies: bodies, walls: Map.get(result, :walls, [])}
+
+      %{molecules: molecules} ->
+        IO.inspect("DEBUG: unpack_soa - preserving molecules format")
+        %{molecules: molecules, walls: Map.get(result, :walls, [])}
 
       _ ->
         # Fallback
