@@ -37,7 +37,7 @@ defmodule Examples.Gravity do
     end
 
     # This agent conserves energy and momentum
-    conserves :energy, :momentum
+    conserves [:energy, :momentum]
   end
 
   definteraction :apply_gravity, accelerator: :cpu do

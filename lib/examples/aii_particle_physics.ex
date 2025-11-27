@@ -48,7 +48,7 @@ defmodule Examples.AIIParticlePhysics do
     end
 
     # Declare what this agent conserves
-    conserves :energy, :momentum, :information
+    conserves [:energy, :momentum, :information]
   end
 
   defagent Field do
@@ -60,7 +60,7 @@ defmodule Examples.AIIParticlePhysics do
     state :active, Boolean
     state :energy_source, AII.Types.Conserved
 
-    conserves :energy
+    conserves [:energy]
   end
 
   # Gravity interaction - uses CPU by default

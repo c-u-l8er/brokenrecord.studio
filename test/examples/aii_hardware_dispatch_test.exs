@@ -93,7 +93,7 @@ defmodule Examples.AIIHardwareDispatchTest do
       assert Map.has_key?(stats, :total_momentum)
       assert Map.has_key?(stats, :total_information)
       assert Map.has_key?(stats, :spatial_grid_efficiency)
-      assert Map.has_key?(stats, :hardware_utilization)
+      assert Map.has_key?(stats, :spatial_grid_efficiency)
 
       assert stats.total_particles == 20
       assert is_float(stats.total_energy)

@@ -56,9 +56,11 @@ defmodule AII.DSL do
   end
 
   # New: conserves (conserved quantity for agent)
-  defmacro conserves(quantity) do
+  defmacro conserves(quantities) do
     quote do
-      Module.put_attribute(__MODULE__, :conserved_quantities, unquote(quantity))
+      Enum.each(unquote(quantities), fn quantity ->
+        Module.put_attribute(__MODULE__, :conserved_quantities, quantity)
+      end)
     end
   end
 

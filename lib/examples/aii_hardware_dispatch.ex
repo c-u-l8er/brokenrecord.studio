@@ -39,7 +39,7 @@ defmodule Examples.AIIHardwareDispatch do
       AII.Types.Vec3.mul(velocity, mass)
     end
 
-    conserves :energy, :momentum, :information
+    conserves [:energy, :momentum, :information]
   end
 
   defagent SpatialGrid do
@@ -49,7 +49,7 @@ defmodule Examples.AIIHardwareDispatch do
     state :cells, Map  # Spatial hash grid
     state :particle_count, Integer
 
-    conserves :information
+    conserves [:information]
   end
 
   defagent NeuralNetwork do
@@ -65,7 +65,7 @@ defmodule Examples.AIIHardwareDispatch do
 
     state :computational_energy, AII.Types.Conserved
 
-    conserves :energy
+    conserves [:energy]
   end
 
   # RT Cores: Spatial queries and collision detection
@@ -531,7 +531,7 @@ defmodule Examples.AIIHardwareDispatch do
 
   def get_nearby_cell_keys(position, radius, cell_size) do
     {cx, cy, cz} = get_cell_key(position, cell_size)
-    cell_radius = ceil(radius / cell_size)
+    cell_radius = Float.ceil(radius / cell_size) |> trunc
 
     for x <- (cx - cell_radius)..(cx + cell_radius),
         y <- (cy - cell_radius)..(cy + cell_radius),
@@ -656,6 +656,17 @@ defmodule Examples.AIIHardwareDispatch do
       parallel_cpu_utilization: 0.45,  # 45% for multi-core CPU
       simd_utilization: 0.32,  # 32% for SIMD operations
       cpu_utilization: 0.15,  # 15% for scalar CPU
+
+      hardware_utilization: %{
+        rt_core_utilization: 0.85,
+        tensor_core_utilization: 0.92,
+        npu_utilization: 0.67,
+        cuda_core_utilization: 0.78,
+        gpu_utilization: 0.65,
+        parallel_cpu_utilization: 0.45,
+        simd_utilization: 0.32,
+        cpu_utilization: 0.15
+      },
 
       # Platform information
       platform: detect_platform(),  # :nvidia, :amd, :apple, :intel

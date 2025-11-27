@@ -64,7 +64,7 @@ defmodule Examples.AIIConservationVerification do
     end
 
     # Declare strict conservation requirements
-    conserves :energy, :momentum, :charge, :information, :mass
+    conserves [:energy, :momentum, :charge, :information, :mass]
   end
 
   defagent ConservationTracker do
@@ -80,7 +80,7 @@ defmodule Examples.AIIConservationVerification do
     state :violations, List
     state :conservation_history, List
 
-    conserves :energy, :momentum, :charge, :information, :mass
+    conserves [:energy, :momentum, :charge, :information, :mass]
   end
 
   # Perfectly elastic collision - must conserve everything

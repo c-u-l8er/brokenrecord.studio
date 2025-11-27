@@ -48,29 +48,29 @@ defmodule Examples.AIIChemicalReactions do
       1.38e-23 * temperature * 6.022e23  # k_B * N_A
     end
 
-    derives :binding_energy, Energy do
+    derives :binding_energy, AII.Types.Energy do
       # Energy stored in chemical bonds
       Enum.reduce(bonds, 0.0, fn bond, acc ->
         acc + bond_energy(bond.type, bond.strength)
       end)
     end
 
-    derives :total_energy, Energy do
+    derives :total_energy, AII.Types.Energy do
       kinetic_energy + thermal_energy + binding_energy
     end
 
-    derives :atom_count, Atoms do
+    derives :atom_count, AII.Types.Atoms do
       # Count atoms by element
       count_atoms_by_element(molecular_formula)
     end
 
-    derives :entropy, Information do
+    derives :entropy, AII.Types.Information do
       # Information entropy based on molecular complexity
       complexity = length(bonds) * :math.log(length(bonds) + 1)
       temperature * :math.log(temperature + 1) * complexity
     end
 
-    conserves :mass, :charge, :energy, :atoms, :information
+    conserves [:mass, :charge, :energy, :atoms, :information]
   end
 
   defagent Atom do
@@ -90,8 +90,8 @@ defmodule Examples.AIIChemicalReactions do
     state :energy, AII.Types.Conserved
     state :information, AII.Types.Conserved
 
-    derives :kinetic_energy, Energy do
-      0.5 * atomic_mass * Vec3.magnitude(velocity) ** 2
+    derives :kinetic_energy, AII.Types.Energy do
+      0.5 * atomic_mass * AII.Types.Vec3.magnitude(velocity) ** 2
     end
 
     derives :electronegativity, Float do
@@ -121,6 +121,8 @@ defmodule Examples.AIIChemicalReactions do
     end
 
     conserves :energy, :information
+
+    conserves :energy, :information
   end
 
   defagent ReactionEnvironment do
@@ -137,7 +139,7 @@ defmodule Examples.AIIChemicalReactions do
     state :total_mass, AII.Types.Conserved
     state :total_charge, AII.Types.Conserved
 
-    derives :gibbs_free_energy, Energy do
+    derives :gibbs_free_energy, AII.Types.Energy do
       # ΔG = ΔH - TΔS (simplified)
       total_energy.value - temperature * 0.001  # Simplified entropy term
     end
@@ -816,8 +818,9 @@ defmodule Examples.AIIChemicalReactions do
       average_concentration: avg_conc,
 
       total_mass: Enum.sum(Enum.map(molecules, & &1.mass.value)),
-      total_charge: get_in(state, [:environment, :total_charge, :value]) || 0.0,
-      total_energy: get_in(state, [:environment, :total_energy, :value]) || 0.0,
+      total_charge: (get_in(state, [:environment, :total_charge]) || %AII.Types.Conserved{value: 0.0}).value,
+      total_energy: (get_in(state, [:environment, :total_energy]) || %AII.Types.Conserved{value: 0.0}).value,
+      reaction_count: 0,
       catalyst_efficiency: get_in(state, [:catalyst, :efficiency]) || 0.0,
       bound_to_catalyst: (get_in(state, [:catalyst, :bound_molecules]) || []) |> length(),
       conservation_status: %{
@@ -867,14 +870,14 @@ defmodule Examples.AIIChemicalReactions do
 
   def net_charge(formula) when is_map(formula) do
     # Handle map format like %{"H+": 1, "OH-": 1}
+    charges = %{
+      "H+" => 1,
+      "OH-" => -1,
+      "Na+" => 1,
+      "Cl-" => -1
+    }
     Enum.reduce(formula, 0, fn {ion, count}, acc ->
-      charge = case ion do
-        "H+" -> 1
-        "OH-" -> -1
-        "Na+" -> 1
-        "Cl-" -> -1
-        _ -> 0  # Default neutral
-      end
+      charge = Map.get(charges, ion, 0)
       acc + charge * count
     end)
   end
