@@ -19,14 +19,6 @@ defmodule Examples.AIIConservationVerification do
   conserved_quantity :information, type: :scalar, law: :sum, tolerance: 0.000001
   conserved_quantity :mass, type: :scalar, law: :sum, tolerance: 0.000000001
 
-  def __agents__ do
-    [%{conserves: []}]
-  end
-
-  def __interactions__ do
-    []
-  end
-
   defagent Particle do
     property :mass, Float, invariant: true
     property :charge, Float, invariant: true

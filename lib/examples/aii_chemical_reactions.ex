@@ -953,11 +953,4 @@ defmodule Examples.AIIChemicalReactions do
         true  # Would need detailed atom counting
     end
   end
-  def __agents__ do
-    [%{name: :Molecule, conserves: []}]
-  end
-
-  def __interactions__ do
-    [:chemical_bonding, :molecular_reaction, :catalysis, :diffusion]
-  end
 end

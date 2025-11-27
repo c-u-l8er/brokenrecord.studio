@@ -7,6 +7,20 @@ defmodule AII.DSL do
       Module.register_attribute(__MODULE__, :agents, accumulate: true)
       Module.register_attribute(__MODULE__, :interactions, accumulate: true)
       Module.register_attribute(__MODULE__, :conserved_quantities, accumulate: true)
+
+      @before_compile AII.DSL
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    agents = Module.get_attribute(env.module, :agents, [])
+    interactions = Module.get_attribute(env.module, :interactions, [])
+    conserved_quantities = Module.get_attribute(env.module, :conserved_quantities, [])
+
+    quote do
+      def __agents__, do: unquote(Macro.escape(Enum.reverse(agents)))
+      def __interactions__, do: unquote(Macro.escape(Enum.reverse(interactions)))
+      def __conserved_quantities__, do: unquote(Macro.escape(Enum.reverse(conserved_quantities)))
     end
   end
 
@@ -122,7 +136,8 @@ defmodule AII.DSL do
       # Register the agent in the parent module
       Module.put_attribute(__MODULE__, :agents, %{
         name: unquote(name),
-        module: agent_module
+        module: agent_module,
+        conserves: []
       })
     end
   end
@@ -152,11 +167,7 @@ defmodule AII.DSL do
     end
   end
 
-  defmacro conserves(quantity) do
-    quote do
-      Module.put_attribute(__MODULE__, :conserves, [unquote(quantity)])
-    end
-  end
+
 
   defmacro conserves(quantities) when is_list(quantities) do
     quote do

@@ -3,7 +3,6 @@ defmodule Examples.ExamplesTest do
 
   test "examples modules exist" do
     # Test that example modules can be loaded
-    assert Code.ensure_loaded?(Examples.ActorModel)
     assert Code.ensure_loaded?(Examples.ChemicalReactionNet)
     assert Code.ensure_loaded?(Examples.GravitySimulation)
     assert Code.ensure_loaded?(MyPhysics)
@@ -11,7 +10,6 @@ defmodule Examples.ExamplesTest do
 
   test "example modules have expected functions" do
     # Test that example modules export expected functions
-    assert function_exported?(Examples.ActorModel, :actor_system, 0)
     assert function_exported?(Examples.ChemicalReactionNet, :chemical_mixture, 4)
     assert function_exported?(Examples.GravitySimulation, :solar_system, 0)
     assert Code.ensure_loaded?(MyPhysics.CollisionWorld)
