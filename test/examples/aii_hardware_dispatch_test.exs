@@ -284,8 +284,7 @@ defmodule Examples.AIIHardwareDispatchTest do
       grid = %{
         cell_size: 10.0,
         cells: %{
-          {2, 2, 2} => [%{position: {4.5, 4.5, 4.5}}],
-          {3, 3, 3} => [%{position: {6.0, 6.0, 6.0}}],
+          {0, 0, 0} => [%{position: {4.5, 4.5, 4.5}}, %{position: {6.0, 6.0, 6.0}}],
           {10, 10, 10} => [%{position: {20.0, 20.0, 20.0}}]
         }
       }

@@ -865,4 +865,14 @@ defmodule Examples.AIIHardwareDispatch do
         end)
     end
   end
+  def __agents__ do
+    [
+      %{name: :Particle, conserves: [:energy, :momentum, :information]},
+      %{name: :SpatialGrid, conserves: []}
+    ]
+  end
+
+  def __interactions__ do
+    [:rt_collision_detection, :tensor_gravity, :npu_dynamics, :diffusion]
+  end
 end

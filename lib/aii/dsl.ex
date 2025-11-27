@@ -7,10 +7,6 @@ defmodule AII.DSL do
       Module.register_attribute(__MODULE__, :agents, accumulate: true)
       Module.register_attribute(__MODULE__, :interactions, accumulate: true)
       Module.register_attribute(__MODULE__, :conserved_quantities, accumulate: true)
-
-      def __agents__, do: @agents |> Enum.reverse()
-      def __interactions__, do: @interactions |> Enum.reverse()
-      def __conserved_quantities__, do: @conserved_quantities |> Enum.reverse()
     end
   end
 
@@ -126,10 +122,7 @@ defmodule AII.DSL do
       # Register the agent in the parent module
       Module.put_attribute(__MODULE__, :agents, %{
         name: unquote(name),
-        module: agent_module,
-        fields: agent_module.__fields__(),
-        interactions: agent_module.__interactions__(),
-        conserved_quantities: agent_module.__conserved_quantities__()
+        module: agent_module
       })
     end
   end

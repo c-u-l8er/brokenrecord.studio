@@ -184,5 +184,4 @@ defmodule Examples.ActorModel do
       supervisor_restarts: Enum.sum(Enum.map(state.supervisors, fn s -> s.restart_count end))
     }
   end
-
 end

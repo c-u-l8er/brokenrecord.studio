@@ -383,4 +383,15 @@ defmodule Examples.AIIParticlePhysics do
       simulation_step: state.step
     }
   end
+
+  def __agents__ do
+    [
+      %{name: :Particle, conserves: [:energy, :momentum, :information]},
+      %{name: :Field, conserves: [:energy]}
+    ]
+  end
+
+  def __interactions__ do
+    [:apply_gravity, :elastic_collision, :field_interaction, :integrate_motion]
+  end
 end

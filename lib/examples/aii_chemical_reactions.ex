@@ -869,15 +869,13 @@ defmodule Examples.AIIChemicalReactions do
   end
 
   def net_charge(formula) when is_map(formula) do
-    # Handle map format like %{"H+": 1, "OH-": 1}
-    charges = %{
-      "H+" => 1,
-      "OH-" => -1,
-      "Na+" => 1,
-      "Cl-" => -1
-    }
     Enum.reduce(formula, 0, fn {ion, count}, acc ->
-      charge = Map.get(charges, ion, 0)
+      charge_str = String.last(to_string(ion))
+      charge = case charge_str do
+        "+" -> 1
+        "-" -> -1
+        _ -> 0
+      end
       acc + charge * count
     end)
   end
@@ -954,5 +952,12 @@ defmodule Examples.AIIChemicalReactions do
         # Check atom conservation (simplified)
         true  # Would need detailed atom counting
     end
+  end
+  def __agents__ do
+    [%{name: :Molecule, conserves: []}]
+  end
+
+  def __interactions__ do
+    [:chemical_bonding, :molecular_reaction, :catalysis, :diffusion]
   end
 end
