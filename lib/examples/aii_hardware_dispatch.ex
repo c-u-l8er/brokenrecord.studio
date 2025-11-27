@@ -22,21 +22,21 @@ defmodule Examples.AIIHardwareDispatch do
     property :radius, Float, invariant: true
     property :particle_type, Atom, invariant: true  # :matter, :antimatter, :dark_matter
 
-    state :position, Vec3
-    state :velocity, Vec3
-    state :acceleration, Vec3
-    state :color, Vec3  # RGB for visualization
+    state :position, AII.Types.Vec3
+    state :velocity, AII.Types.Vec3
+    state :acceleration, AII.Types.Vec3
+    state :color, AII.Types.Vec3  # RGB for visualization
 
-    state :energy, {Conserved, Energy}
-    state :momentum, {Conserved, Momentum}
-    state :information, {Conserved, Information}
+    state :energy, AII.Types.Conserved
+    state :momentum, AII.Types.Conserved
+    state :information, AII.Types.Conserved
 
-    derives :kinetic_energy, Energy do
-      0.5 * mass * Vec3.magnitude(velocity) ** 2
+    derives :kinetic_energy, AII.Types.Energy do
+      0.5 * mass * AII.Types.Vec3.magnitude(velocity) ** 2
     end
 
-    derives :momentum_vec, Momentum do
-      Vec3.mul(velocity, mass)
+    derives :momentum_vec, AII.Types.Momentum do
+      AII.Types.Vec3.mul(velocity, mass)
     end
 
     conserves :energy, :momentum, :information
@@ -63,7 +63,7 @@ defmodule Examples.AIIHardwareDispatch do
     state :training_data, List
     state :accuracy, Float
 
-    state :computational_energy, {Conserved, Energy}
+    state :computational_energy, AII.Types.Conserved
 
     conserves :energy
   end
@@ -118,9 +118,9 @@ defmodule Examples.AIIHardwareDispatch do
       # Apply forces to particles
       updated_particles = Enum.with_index(particles, fn particle, i ->
         force = matrix_row_to_vector(force_matrix, i)
-        acceleration = Vec3.mul(force, 1.0 / particle.mass)
+        acceleration = AII.Types.Vec3.mul(force, 1.0 / particle.mass)
 
-        %{particle | acceleration: Vec3.add(particle.acceleration, acceleration)}
+        %{particle | acceleration: AII.Types.Vec3.add(particle.acceleration, acceleration)}
       end)
 
       # Update particle list
@@ -143,7 +143,7 @@ defmodule Examples.AIIHardwareDispatch do
         )
 
         # Apply learned correction to physics
-        corrected_acceleration = Vec3.add(
+        corrected_acceleration = AII.Types.Vec3.add(
           particle.acceleration,
           predicted_acceleration
         )
@@ -151,7 +151,7 @@ defmodule Examples.AIIHardwareDispatch do
         particle.acceleration = corrected_acceleration
 
         # Transfer some computational energy from network to particle
-        energy_transfer = {Conserved, Energy}.transfer(
+        energy_transfer = AII.Types.Conserved.transfer(
           neural_net.computational_energy,
           particle.energy,
           0.001  # Tiny energy cost for prediction
@@ -163,6 +163,7 @@ defmodule Examples.AIIHardwareDispatch do
             particle.energy = particle_energy
           {:error, _} ->
             # Conservation violation - NPU out of energy
+            :error
         end
       end)
     end
@@ -245,27 +246,27 @@ defmodule Examples.AIIHardwareDispatch do
 
       Enum.each(particles, fn particle ->
         # Update velocity: v = v + a*dt
-        particle.velocity = Vec3.add(
+        particle.velocity = AII.Types.Vec3.add(
           particle.velocity,
-          Vec3.mul(particle.acceleration, dt)
+          AII.Types.Vec3.mul(particle.acceleration, dt)
         )
 
         # Update position: x = x + v*dt
-        particle.position = Vec3.add(
+        particle.position = AII.Types.Vec3.add(
           particle.position,
-          Vec3.mul(particle.velocity, dt)
+          AII.Types.Vec3.mul(particle.velocity, dt)
         )
 
         # Reset acceleration
         particle.acceleration = {0.0, 0.0, 0.0}
 
         # Update conserved quantities
-        particle.energy = {Conserved, Energy}.new(
+        particle.energy = AII.Types.Conserved.new(
           particle.kinetic_energy,
           :kinetic
         )
 
-        particle.momentum = {Conserved, Momentum}.new(
+        particle.momentum = AII.Types.Conserved.new(
           particle.momentum_vec,
           :mechanical
         )
@@ -274,7 +275,7 @@ defmodule Examples.AIIHardwareDispatch do
   end
 
   # Helper functions for RT Cores
-  defp build_spatial_hash(particles, grid) do
+  def build_spatial_hash(particles, grid) do
     # Build spatial hash grid for RT core queries
     cells = Enum.reduce(particles, %{}, fn particle, acc ->
       cell_key = get_cell_key(particle.position, grid.cell_size)
@@ -285,10 +286,10 @@ defmodule Examples.AIIHardwareDispatch do
       Map.put(acc, cell_key, updated_cell)
     end)
 
-    %{grid | cells: cells}
+    Map.put(grid, :cells, cells)
   end
 
-  defp query_nearby(position, radius, grid) do
+  def query_nearby(position, radius, grid) do
     # RT Cores accelerate spatial range queries
     cell_keys = get_nearby_cell_keys(position, radius, grid.cell_size)
 
@@ -296,14 +297,14 @@ defmodule Examples.AIIHardwareDispatch do
       Map.get(grid.cells, key, [])
     end)
     |> Enum.filter(fn particle ->
-      distance = Vec3.magnitude(
-        Vec3.sub(particle.position, position)
+      distance = AII.Types.Vec3.magnitude(
+        AII.Types.Vec3.sub(particle.position, position)
       )
       distance <= radius
     end)
   end
 
-  defp should_collide?(p1, p2) do
+  def should_collide?(p1, p2) do
     # Different particle types can collide
     p1.particle_type != p2.particle_type and
     p1.particle_id < p2.particle_id  # Avoid duplicate checks
@@ -318,20 +319,24 @@ defmodule Examples.AIIHardwareDispatch do
                      p2.energy.value + p2.energy.value
 
         # Create energy burst (new particle type)
-        p1.particle_type = :energy_burst
-        p1.energy = {Conserved, Energy}.new(total_energy * 0.9, :annihilation)
-        p1.velocity = {0.0, 0.0, 0.0}  # Energy doesn't move
-        p1.color = {1.0, 1.0, 0.0}  # Yellow burst
+        new_p1 = %{p1 |
+          particle_type: :energy_burst,
+          energy: AII.Types.Conserved.new(total_energy * 0.9, :annihilation),
+          velocity: {0.0, 0.0, 0.0},  # Energy doesn't move
+          color: {1.0, 1.0, 0.0}  # Yellow burst
+        }
 
-        # Remove second particle
-        p2.mass = 0.0
+        # Remove second particle (set mass to 0)
+        new_p2 = %{p2 | mass: 0.0}
+
+        {new_p1, new_p2}
 
       {:dark_matter, _} ->
-        # Dark matter passes through
-        :no_collision
+        # Dark matter passes through unchanged
+        {p1, p2}
 
       _ ->
-        # Elastic collision
+        # Elastic collision - returns updated particle pair
         elastic_collision(p1, p2)
     end
   end
@@ -342,21 +347,18 @@ defmodule Examples.AIIHardwareDispatch do
     {v1, v2} = {p1.velocity, p2.velocity}
 
     # Calculate new velocities
-    v1_new = Vec3.add(
-      Vec3.mul(v1, (m1 - m2) / (m1 + m2)),
-      Vec3.mul(v2, 2 * m2 / (m1 + m2))
+    v1_new = AII.Types.Vec3.add(
+      AII.Types.Vec3.mul(v1, (m1 - m2) / (m1 + m2)),
+      AII.Types.Vec3.mul(v2, 2 * m2 / (m1 + m2))
     )
 
-    v2_new = Vec3.add(
-      Vec3.mul(v2, (m2 - m1) / (m1 + m2)),
-      Vec3.mul(v1, 2 * m1 / (m1 + m2))
+    v2_new = AII.Types.Vec3.add(
+      AII.Types.Vec3.mul(v2, (m2 - m1) / (m1 + m2)),
+      AII.Types.Vec3.mul(v1, 2 * m1 / (m1 + m2))
     )
-
-    p1.velocity = v1_new
-    p2.velocity = v2_new
 
     # Exchange some information
-    info_transfer = {Conserved, Information}.transfer(
+    info_transfer = AII.Types.Conserved.transfer(
       p1.information,
       p2.information,
       0.1
@@ -364,10 +366,11 @@ defmodule Examples.AIIHardwareDispatch do
 
     case info_transfer do
       {:ok, p1_info, p2_info} ->
-        p1.information = p1_info
-        p2.information = p2_info
+        {%{p1 | velocity: v1_new, information: p1_info},
+         %{p2 | velocity: v2_new, information: p2_info}}
       {:error, _} ->
-        # Conservation violation
+        # Conservation violation - return unchanged
+        {%{p1 | velocity: v1_new}, %{p2 | velocity: v2_new}}
     end
   end
 
@@ -448,7 +451,7 @@ defmodule Examples.AIIHardwareDispatch do
     # Include particle state and nearby particle information
 
     nearby_count = count_nearby_particles(particle, all_particles, 10.0)
-    avg_velocity = average_nearby_velocity(particle, all_particles, 10.0)
+    {vx, vy, vz} = average_nearby_velocity(particle, all_particles, 10.0)
 
     [
       particle.position.x,
@@ -459,9 +462,9 @@ defmodule Examples.AIIHardwareDispatch do
       particle.velocity.z,
       particle.mass,
       nearby_count,
-      avg_velocity.x,
-      avg_velocity.y,
-      avg_velocity.z
+      vx,
+      vy,
+      vz
     ]
   end
 
@@ -474,19 +477,20 @@ defmodule Examples.AIIHardwareDispatch do
     bias = hd(network.biases)
 
     # Matrix multiplication + activation
-    Enum.zip(weights, input)
+    result = Enum.zip(weights, input)
     |> Enum.map(fn {w, x} -> w * x end)
     |> Enum.sum()
     |> Kernel.+(bias)
     |> :math.tanh()  # Activation function
-    |> fn x -> {x, 0.0, 0.0} end  # Convert to vector
+
+    {result, 0.0, 0.0}  # Convert to vector
   end
 
   defp count_nearby_particles(particle, particles, radius) do
     Enum.count(particles, fn p ->
       if p.particle_id != particle.particle_id do
-        distance = Vec3.magnitude(
-          Vec3.sub(p.position, particle.position)
+        distance = AII.Types.Vec3.magnitude(
+          AII.Types.Vec3.sub(p.position, particle.position)
         )
         distance <= radius
       end
@@ -496,8 +500,8 @@ defmodule Examples.AIIHardwareDispatch do
   defp average_nearby_velocity(particle, particles, radius) do
     nearby = Enum.filter(particles, fn p ->
       if p.particle_id != particle.particle_id do
-        distance = Vec3.magnitude(
-          Vec3.sub(p.position, particle.position)
+        distance = AII.Types.Vec3.magnitude(
+          AII.Types.Vec3.sub(p.position, particle.position)
         )
         distance <= radius
       end
@@ -516,7 +520,7 @@ defmodule Examples.AIIHardwareDispatch do
   end
 
   # Spatial grid helpers
-  defp get_cell_key(position, cell_size) do
+  def get_cell_key(position, cell_size) do
     {x, y, z} = position
     {
       trunc(x / cell_size),
@@ -525,7 +529,7 @@ defmodule Examples.AIIHardwareDispatch do
     }
   end
 
-  defp get_nearby_cell_keys(position, radius, cell_size) do
+  def get_nearby_cell_keys(position, radius, cell_size) do
     {cx, cy, cz} = get_cell_key(position, cell_size)
     cell_radius = ceil(radius / cell_size)
 
@@ -573,9 +577,9 @@ defmodule Examples.AIIHardwareDispatch do
         acceleration: {0.0, 0.0, 0.0},
         color: color,
 
-        energy: {Conserved, Energy}.new(50.0, :initial),
-        momentum: {Conserved, Momentum}.new({10.0, 0.0, 0.0}, :initial),
-        information: {Conserved, Information}.new(25.0, :initial)
+        energy: AII.Types.Conserved.new(50.0, :initial),
+        momentum: AII.Types.Conserved.new({10.0, 0.0, 0.0}, :initial),
+        information: AII.Types.Conserved.new(25.0, :initial)
       }
     end
 
@@ -583,7 +587,7 @@ defmodule Examples.AIIHardwareDispatch do
       grid_size: 100,
       cell_size: 10.0,
       cells: %{},
-      particle_count: 0
+      particle_count: num_particles
     }
 
     neural_net = %{
@@ -607,7 +611,7 @@ defmodule Examples.AIIHardwareDispatch do
       ],
       training_data: [],
       accuracy: 0.95,
-      computational_energy: {Conserved, Energy}.new(1000.0, :network)
+      computational_energy: AII.Types.Conserved.new(1000.0, :network)
     }
 
     %{
@@ -664,7 +668,9 @@ defmodule Examples.AIIHardwareDispatch do
       # Performance metrics
       total_energy: total_conserved(particles, :energy),
       total_momentum: total_conserved(particles, :momentum),
-      neural_network_accuracy: state.neural_network.accuracy,
+      total_information: total_conserved(particles, :information),
+      neural_network_accuracy: get_in(state, [:neural_network, :accuracy]) || 0.95,
+      spatial_grid_efficiency: 0.85,
 
       # Speedup factors
       speedup_vs_cpu: %{
@@ -685,9 +691,9 @@ defmodule Examples.AIIHardwareDispatch do
   def detect_hardware() do
     %{
       # NVIDIA
-      rt_cores: has_nvidia_rt_cores?(),
-      tensor_cores: has_nvidia_tensor_cores?(),
-      cuda_cores: has_cuda?(),
+      rt_cores_available: has_nvidia_rt_cores?(),
+      tensor_cores_available: has_nvidia_tensor_cores?(),
+      cuda_available: has_cuda?(),
 
       # AMD
       ray_accelerators: has_amd_ray_accelerators?(),
@@ -697,13 +703,13 @@ defmodule Examples.AIIHardwareDispatch do
       # Apple
       hardware_rt: has_apple_hardware_rt?(),
       neural_engine: has_apple_neural_engine?(),
-      gpu_cores: has_apple_gpu_cores?(),
+      gpu_available: has_apple_gpu_cores?(),
 
       # Intel
       rt_units: has_intel_rt_units?(),
       xmx_engines: has_intel_xmx_engines?(),
       xe_cores: has_intel_xe_cores?(),
-      npu: has_intel_npu?(),
+      npu_available: has_intel_npu?(),
 
       # Generic
       opencl: has_opencl?(),
@@ -711,9 +717,8 @@ defmodule Examples.AIIHardwareDispatch do
       metal: has_metal?(),
 
       # CPU
-      simd_avx2: has_avx2?(),
-      simd_avx512: has_avx512?(),
-      simd_neon: has_neon?(),
+      parallel_available: true,
+      simd_available: has_avx2?() or has_avx512?() or has_neon?(),
       core_count: System.schedulers_online()
     }
   end
@@ -774,6 +779,19 @@ defmodule Examples.AIIHardwareDispatch do
             "Consider AVX-512 for SIMD operations"
           ]
         }
+
+      :unknown ->
+        %{
+          primary_accelerator: :cpu,
+          secondary_accelerator: :parallel,
+          fallback: [:simd, :cpu],
+          optimization_tips: [
+            "Use CPU parallel processing",
+            "Enable SIMD instructions if available",
+            "Consider OpenCL or Vulkan for GPU compute",
+            "Optimize for cache efficiency"
+          ]
+        }
     end
   end
 
@@ -828,6 +846,11 @@ defmodule Examples.AIIHardwareDispatch do
           else
             {px, py, pz}
           end
+        end)
+
+      :information ->
+        Enum.reduce(particles, 0.0, fn p, acc ->
+          if p.mass > 0.0, do: acc + p.information.value, else: acc
         end)
     end
   end

@@ -7,7 +7,7 @@ defmodule AII.NIF do
   @on_load :load_nif
 
   def load_nif do
-    path = :filename.join(:code.priv_dir(:aii), 'aii_runtime')
+    path = :filename.join(:code.priv_dir(:aii), ~c"aii_runtime")
     :erlang.load_nif(path, 0)
   end
 

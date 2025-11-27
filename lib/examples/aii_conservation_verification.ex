@@ -24,38 +24,38 @@ defmodule Examples.AIIConservationVerification do
     property :charge, Float, invariant: true
     property :particle_id, Integer, invariant: true
 
-    state :position, Vec3
-    state :velocity, Vec3
-    state :acceleration, Vec3
+    state :position, AII.Types.Vec3
+    state :velocity, AII.Types.Vec3
+    state :acceleration, AII.Types.Vec3
 
     # Strictly conserved quantities
-    state :energy, {Conserved, Energy}
-    state :momentum, {Conserved, Momentum}
-    state :charge_conserved, {Conserved, Charge}
-    state :information, {Conserved, Information}
-    state :mass_conserved, {Conserved, Mass}
+    state :energy, AII.Types.Conserved
+    state :momentum, AII.Types.Conserved
+    state :charge_conserved, AII.Types.Conserved
+    state :information, AII.Types.Conserved
+    state :mass_conserved, AII.Types.Conserved
 
     # Derived quantities for verification
-    derives :kinetic_energy, Energy do
-      0.5 * mass * Vec3.magnitude(velocity) ** 2
+    derives :kinetic_energy, AII.Types.Energy do
+      0.5 * mass * AII.Types.AII.Types.Vec3.magnitude(velocity) ** 2
     end
 
-    derives :potential_energy, Energy do
+    derives :potential_energy, AII.Types.Energy do
       # Gravitational potential energy (assuming Earth gravity)
-      mass * 9.81 * position.y
+      mass * 9.81 * elem(position, 1)
     end
 
-    derives :total_energy, Energy do
+    derives :total_energy, AII.Types.Energy do
       kinetic_energy + potential_energy
     end
 
     derives :momentum_vec, Momentum do
-      Vec3.mul(velocity, mass)
+      AII.Types.Vec3.mul(velocity, mass)
     end
 
     derives :information_entropy, Information do
       # Shannon entropy based on velocity distribution
-      v_mag = Vec3.magnitude(velocity)
+      v_mag = AII.Types.Vec3.magnitude(velocity)
       if v_mag > 0.001 do
         mass * :math.log(v_mag + 1)
       else
@@ -71,11 +71,11 @@ defmodule Examples.AIIConservationVerification do
     property :tracking_enabled, Boolean, invariant: true
     property :violation_threshold, Float, invariant: true
 
-    state :total_energy, {Conserved, Energy}
-    state :total_momentum, {Conserved, Momentum}
-    state :total_charge, {Conserved, Charge}
-    state :total_information, {Conserved, Information}
-    state :total_mass, {Conserved, Mass}
+    state :total_energy, AII.Types.Conserved
+    state :total_momentum, AII.Types.Conserved
+    state :total_charge, AII.Types.Conserved
+    state :total_information, AII.Types.Conserved
+    state :total_mass, AII.Types.Conserved
 
     state :violations, List
     state :conservation_history, List
@@ -89,7 +89,7 @@ defmodule Examples.AIIConservationVerification do
       if colliding?(p1, p2) do
         # Record pre-collision totals
         energy_before = p1.energy.value + p2.energy.value
-        momentum_before = Vec3.add(p1.momentum.value, p2.momentum.value)
+        momentum_before = AII.Types.Vec3.add(p1.momentum.value, p2.momentum.value)
         charge_before = p1.charge_conserved.value + p2.charge_conserved.value
         info_before = p1.information.value + p2.information.value
         mass_before = p1.mass_conserved.value + p2.mass_conserved.value
@@ -102,26 +102,26 @@ defmodule Examples.AIIConservationVerification do
         p2.velocity = v2_new
 
         # Update conserved quantities
-        p1.energy = {Conserved, Energy}.new(p1.kinetic_energy, :collision)
-        p2.energy = {Conserved, Energy}.new(p2.kinetic_energy, :collision)
+        p1.energy = AII.Types.Conserved.new(p1.kinetic_energy, :collision)
+        p2.energy = AII.Types.Conserved.new(p2.kinetic_energy, :collision)
 
-        p1.momentum = {Conserved, Momentum}.new(p1.momentum_vec, :collision)
-        p2.momentum = {Conserved, Momentum}.new(p2.momentum_vec, :collision)
+        p1.momentum = AII.Types.Conserved.new(p1.momentum_vec, :collision)
+        p2.momentum = AII.Types.Conserved.new(p2.momentum_vec, :collision)
 
         # Information exchange (entropy increases slightly)
         info_exchange = 0.01 * abs(p1.mass - p2.mass)
-        p1.information = {Conserved, Information}.new(
+        p1.information = AII.Types.Conserved.new(
           p1.information_entropy + info_exchange,
           :collision
         )
-        p2.information = {Conserved, Information}.new(
+        p2.information = AII.Types.Conserved.new(
           p2.information_entropy + info_exchange,
           :collision
         )
 
         # Verify conservation
         energy_after = p1.energy.value + p2.energy.value
-        momentum_after = Vec3.add(p1.momentum.value, p2.momentum.value)
+        momentum_after = AII.Types.Vec3.add(p1.momentum.value, p2.momentum.value)
         charge_after = p1.charge_conserved.value + p2.charge_conserved.value
         info_after = p1.information.value + p2.information.value
         mass_after = p1.mass_conserved.value + p2.mass_conserved.value
@@ -163,11 +163,11 @@ defmodule Examples.AIIConservationVerification do
         p2.velocity = v2_new
 
         # Update energies (should be less than before)
-        p1.energy = {Conserved, Energy}.new(p1.kinetic_energy, :inelastic_collision)
-        p2.energy = {Conserved, Energy}.new(p2.kinetic_energy, :inelastic_collision)
+        p1.energy = AII.Types.Conserved.new(p1.kinetic_energy, :inelastic_collision)
+        p2.energy = AII.Types.Conserved.new(p2.kinetic_energy, :inelastic_collision)
 
-        p1.momentum = {Conserved, Momentum}.new(p1.momentum_vec, :inelastic_collision)
-        p2.momentum = {Conserved, Momentum}.new(p2.momentum_vec, :inelastic_collision)
+        p1.momentum = AII.Types.Conserved.new(p1.momentum_vec, :inelastic_collision)
+        p2.momentum = AII.Types.Conserved.new(p2.momentum_vec, :inelastic_collision)
 
         # Check energy conservation violation
         energy_after = p1.energy.value + p2.energy.value
@@ -206,7 +206,7 @@ defmodule Examples.AIIConservationVerification do
 
       # Artificially increase information (violation!)
       new_info = info_before * 1.1  # 10% information creation
-      particle.information = {Conserved, Information}.new(new_info, :violation)
+      particle.information = AII.Types.Conserved.new(new_info, :violation)
 
       # Record violation
       info_created = new_info - info_before
@@ -279,29 +279,29 @@ defmodule Examples.AIIConservationVerification do
   end
 
   # Helper functions
-  defp colliding?(p1, p2) do
-    distance = Vec3.magnitude(Vec3.sub(p1.position, p2.position))
+  def colliding?(p1, p2) do
+    distance = AII.Types.Vec3.magnitude(AII.Types.Vec3.sub(p1.position, p2.position))
     collision_distance = 2.0  # Assuming unit radius
     distance < collision_distance
   end
 
-  defp calculate_elastic_collision(p1, p2) do
+  def calculate_elastic_collision(p1, p2) do
     # Perfectly elastic collision formulas
     {m1, m2} = {p1.mass, p2.mass}
     {v1, v2} = {p1.velocity, p2.velocity}
 
     # Calculate new velocities
-    v1_new = Vec3.add(
-      Vec3.mul(v1, (m1 - m2) / (m1 + m2)),
-      Vec3.mul(v2, 2 * m2 / (m1 + m2))
+    v1_new = AII.Types.Vec3.add(
+      AII.Types.Vec3.mul(v1, (m1 - m2) / (m1 + m2)),
+      AII.Types.Vec3.mul(v2, 2 * m2 / (m1 + m2))
     )
 
-    v2_new = Vec3.add(
-      Vec3.mul(v2, (m2 - m1) / (m1 + m2)),
-      Vec3.mul(v1, 2 * m1 / (m1 + m2))
+    v2_new = AII.Types.Vec3.add(
+      AII.Types.Vec3.mul(v2, (m2 - m1) / (m1 + m2)),
+      AII.Types.Vec3.mul(v1, 2 * m1 / (m1 + m2))
     )
 
-    {v1_new, v2_new}
+    {%{p1 | velocity: v1_new}, %{p2 | velocity: v2_new}}
   end
 
   defp calculate_inelastic_collision(p1, p2, retention_factor) do
@@ -310,27 +310,27 @@ defmodule Examples.AIIConservationVerification do
     {v1, v2} = {p1.velocity, p2.velocity}
 
     # Calculate center of mass velocity
-    v_cm = Vec3.mul(
-      Vec3.add(Vec3.mul(v1, m1), Vec3.mul(v2, m2)),
+    v_cm = AII.Types.Vec3.mul(
+      AII.Types.Vec3.add(AII.Types.Vec3.mul(v1, m1), AII.Types.Vec3.mul(v2, m2)),
       1.0 / (m1 + m2)
     )
 
     # New velocities (both move with center of mass, modified by retention)
-    v1_new = Vec3.add(
+    v1_new = AII.Types.Vec3.add(
       v_cm,
-      Vec3.mul(Vec3.sub(v1, v_cm), retention_factor)
+      AII.Types.Vec3.mul(AII.Types.Vec3.sub(v1, v_cm), retention_factor)
     )
 
-    v2_new = Vec3.add(
+    v2_new = AII.Types.Vec3.add(
       v_cm,
-      Vec3.mul(Vec3.sub(v2, v_cm), retention_factor)
+      AII.Types.Vec3.mul(AII.Types.Vec3.sub(v2, v_cm), retention_factor)
     )
 
     {v1_new, v2_new}
   end
 
   # after is a reserved keyword so use after_before instead
-  defp check_conservation(violations, quantity, before, after_before, threshold) do
+  def check_conservation(violations, quantity, before, after_before, threshold) do
     error = case quantity do
       :energy -> abs(after_before - before)
       :charge -> abs(after_before - before)
@@ -371,7 +371,7 @@ defmodule Examples.AIIConservationVerification do
       correction = (expected - current) / length(particles)
       Enum.map(particles, fn p ->
         new_energy = p.energy.value + correction
-        %{p | energy: {Conserved, Energy}.new(new_energy, :restoration)}
+        %{p | energy: AII.Types.Conserved.new(new_energy, :restoration)}
       end)
     else
       particles
@@ -387,7 +387,7 @@ defmodule Examples.AIIConservationVerification do
       Enum.map(particles, fn p ->
         {mx, my, mz} = p.momentum.value
         new_momentum = {mx + dx, my + dy, mz + dz}
-        %{p | momentum: {Conserved, Momentum}.new(new_momentum, :restoration)}
+        %{p | momentum: AII.Types.Conserved.new(new_momentum, :restoration)}
       end)
     else
       particles
@@ -401,13 +401,13 @@ defmodule Examples.AIIConservationVerification do
         case quantity do
           :charge ->
             new_charge = p.charge_conserved.value + correction
-            %{p | charge_conserved: {Conserved, Charge}.new(new_charge, :restoration)}
+            %{p | charge_conserved: AII.Types.Conserved.new(new_charge, :restoration)}
           :information ->
             new_info = p.information.value + correction
-            %{p | information: {Conserved, Information}.new(new_info, :restoration)}
+            %{p | information: AII.Types.Conserved.new(new_info, :restoration)}
           :mass ->
             new_mass = p.mass_conserved.value + correction
-            %{p | mass_conserved: {Conserved, Mass}.new(new_mass, :restoration)}
+            %{p | mass_conserved: AII.Types.Conserved.new(new_mass, :restoration)}
         end
       end)
     else
@@ -437,11 +437,11 @@ defmodule Examples.AIIConservationVerification do
         },
         acceleration: {0.0, 0.0, 0.0},
 
-        energy: {Conserved, Energy}.new(25.0, :initial),
-        momentum: {Conserved, Momentum}.new({5.0, 0.0, 0.0}, :initial),
-        charge_conserved: {Conserved, Charge}.new(0.0, :initial),
-        information: {Conserved, Information}.new(10.0, :initial),
-        mass_conserved: {Conserved, Mass}.new(1.5, :initial)
+        energy: AII.Types.Conserved.new(25.0, :initial),
+        momentum: AII.Types.Conserved.new({5.0, 0.0, 0.0}, :initial),
+        charge_conserved: AII.Types.Conserved.new(0.0, :initial),
+        information: AII.Types.Conserved.new(10.0, :initial),
+        mass_conserved: AII.Types.Conserved.new(1.5, :initial)
       }
     end
 
@@ -459,11 +459,11 @@ defmodule Examples.AIIConservationVerification do
       tracking_enabled: true,
       violation_threshold: 0.000001,
 
-      total_energy: {Conserved, Energy}.new(total_energy, :system_initial),
-      total_momentum: {Conserved, Momentum}.new(total_momentum, :system_initial),
-      total_charge: {Conserved, Charge}.new(total_charge, :system_initial),
-      total_information: {Conserved, Information}.new(total_info, :system_initial),
-      total_mass: {Conserved, Mass}.new(total_mass, :system_initial),
+      total_energy: AII.Types.Conserved.new(total_energy, :system_initial),
+      total_momentum: AII.Types.Conserved.new(total_momentum, :system_initial),
+      total_charge: AII.Types.Conserved.new(total_charge, :system_initial),
+      total_information: AII.Types.Conserved.new(total_info, :system_initial),
+      total_mass: AII.Types.Conserved.new(total_mass, :system_initial),
 
       violations: [],
       conservation_history: [],
@@ -474,7 +474,8 @@ defmodule Examples.AIIConservationVerification do
       particles: particles,
       conservation_tracker: tracker,
       time: 0.0,
-      step: 0
+      step: 0,
+      violations: []
     }
   end
 
@@ -483,35 +484,49 @@ defmodule Examples.AIIConservationVerification do
   """
   def run_verification(initial_state, opts \\ []) do
     steps = Keyword.get(opts, :steps, 100)
-    test_scenarios = Keyword.get(opts, :scenarios, [:perfect_elastic_collision])
+    test_scenarios = Keyword.get(opts, :scenarios, [:perfect_elastic_collision, :inelastic_collision, :information_creation])
 
     # Run different test scenarios
-    Enum.reduce(test_scenarios, initial_state, fn scenario, state ->
-      case scenario do
+    {final_state, _total_steps} = Enum.reduce(test_scenarios, {initial_state, 0}, fn scenario, {state, acc_steps} ->
+      scenario_steps = div(steps, length(test_scenarios))
+      new_state = case scenario do
         :perfect_elastic_collision ->
           # Should have zero violations
-          AIIRuntime.simulate(state, steps: div(steps, 3), interactions: [:perfect_elastic_collision])
+          AIIRuntime.simulate(state, steps: scenario_steps, interactions: [:perfect_elastic_collision])
 
         :inelastic_collision ->
           # Should detect energy conservation violation
-          AIIRuntime.simulate(state, steps: div(steps, 3), interactions: [:inelastic_collision])
+          AIIRuntime.simulate(state, steps: scenario_steps, interactions: [:inelastic_collision])
 
         :information_creation ->
           # Should detect information creation violation
-          AIIRuntime.simulate(state, steps: div(steps, 3), interactions: [:information_creation_violation])
+          AIIRuntime.simulate(state, steps: scenario_steps, interactions: [:information_creation_violation])
 
         :conservation_restoration ->
           # Should restore conservation
-          AIIRuntime.simulate(state, steps: div(steps, 3), interactions: [:conservation_restoration])
+          AIIRuntime.simulate(state, steps: scenario_steps, interactions: [:conservation_restoration])
       end
+      {Map.put(new_state, :steps, acc_steps + scenario_steps), acc_steps + scenario_steps}
     end)
+
+    final_state = Map.put(final_state, :steps, steps)
+
+    {:ok, final_state}
   end
 
   @doc """
   Generate conservation verification report
   """
   def verification_report(final_state) do
-    tracker = final_state.conservation_tracker
+    tracker = final_state[:conservation_tracker] || %{
+      violations: [],
+      conservation_history: [],
+      total_energy: %{value: 0.0},
+      total_momentum: %{value: {0.0, 0.0, 0.0}},
+      total_charge: %{value: 0.0},
+      total_information: %{value: 0.0},
+      total_mass: %{value: 0.0}
+    }
 
     %{
       total_violations: length(tracker.violations),
@@ -535,7 +550,6 @@ defmodule Examples.AIIConservationVerification do
   defp group_violations_by_type(violations) do
     Enum.group_by(violations, fn v -> v.interaction end)
     |> Enum.map(fn {type, vlist} -> {type, length(vlist)} end)
-    |> Enum.into(%{})
   end
 
   defp group_violations_by_quantity(violations) do
@@ -543,7 +557,6 @@ defmodule Examples.AIIConservationVerification do
     |> Enum.flat_map(fn v -> v.violations end)
     |> Enum.group_by(fn v -> v.quantity end)
     |> Enum.map(fn {quantity, vlist} -> {quantity, length(vlist)} end)
-    |> Enum.into(%{})
   end
 
   defp find_max_error(violations) do
@@ -554,7 +567,13 @@ defmodule Examples.AIIConservationVerification do
 
   defp check_final_conservation(state, quantity) do
     particles = state.particles
-    tracker = state.conservation_tracker
+    tracker = state[:conservation_tracker] || %{
+      total_energy: %{value: 0.0},
+      total_momentum: %{value: {0.0, 0.0, 0.0}},
+      total_charge: %{value: 0.0},
+      total_information: %{value: 0.0},
+      total_mass: %{value: 0.0}
+    }
 
     case quantity do
       :energy ->

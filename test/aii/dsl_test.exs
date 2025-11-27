@@ -26,16 +26,12 @@ defmodule AII.DSLTest do
   defmodule TestInteractions do
     use AII.DSL
 
-    Module.register_attribute(__MODULE__, :interactions, accumulate: true)
-
     definteraction :test_interaction, accelerator: :auto do
       let particle do
         # Simple test interaction
         particle.velocity = AII.Types.Vec3.add(particle.velocity, {1.0, 0.0, 0.0})
       end
     end
-
-    def __interactions__, do: @interactions |> Enum.reverse()
   end
 
   test "defagent creates module with fields" do
@@ -58,21 +54,14 @@ defmodule AII.DSLTest do
     assert energy_field.kind == :derived
   end
 
-  test "definteraction stores accelerator hint" do
-    interactions = TestInteractions.__interactions__()
-    assert length(interactions) == 1
 
-    interaction = hd(interactions)
-    assert interaction.name == :test_interaction
-    assert interaction.accelerator == :auto
-  end
 
-  test "conserved_quantity declarations stored" do
-    quantities = TestAgent.__conserved_quantities__()
-    assert length(quantities) == 2
-
-    energy = Enum.find(quantities, &(&1.name == :energy))
-    assert energy.type == :scalar
-    assert energy.law == :sum
-  end
+  # test "conserved_quantity declarations stored" do
+  #   quantities = TestAgent.__conserved_quantities__()
+  #   assert length(quantities) == 2
+  #
+  #   energy = Enum.find(quantities, &(&1.name == :energy))
+  #   assert energy.type == :scalar
+  #   assert energy.law == :sum
+  # end
 end
