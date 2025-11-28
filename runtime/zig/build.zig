@@ -5,24 +5,32 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Build shared library for Elixir NIF
-    const lib = b.addSharedLibrary(.{
-        .name = "aii_runtime",
-        .root_source_file = .{ .path = "nif.zig" },
+    const nif_module = b.createModule(.{
+        .root_source_file = b.path("nif.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // Link with Erlang
-    lib.linkSystemLibrary("erl_interface");
-    lib.linkSystemLibrary("ei");
+    const lib = b.addLibrary(.{
+        .name = "aii_runtime",
+        .root_module = nif_module,
+        .linkage = .dynamic,
+    });
+
+    // Link with Erlang static libraries
+    lib.addObjectFile(.{ .cwd_relative = "/usr/lib/erlang/lib/erl_interface-5.5.2/lib/libei.a" });
 
     b.installArtifact(lib);
 
     // Tests
-    const tests = b.addTest(.{
-        .root_source_file = .{ .path = "particle_system.zig" },
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("particle_system.zig"),
         .target = target,
         .optimize = optimize,
+    });
+
+    const tests = b.addTest(.{
+        .root_module = test_module,
     });
 
     const run_tests = b.addRunArtifact(tests);

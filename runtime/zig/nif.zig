@@ -1,4 +1,3 @@
-runtime/zig/nif.zig
 const std = @import("std");
 const beam = @import("beam.zig");
 const ParticleSystem = @import("particle_system.zig").ParticleSystem;
@@ -9,7 +8,7 @@ const allocator = gpa.allocator();
 // Store particle systems by reference
 var systems = std.AutoHashMap(usize, *ParticleSystem).init(allocator);
 
-export fn create_particle_system(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
+export fn create_particle_system(env: beam.Env, argc: i32, argv: [*c]const beam.Term) beam.Term {
     if (argc != 1) return beam.makeError(env, "expected 1 argument");
 
     const capacity = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid capacity");
@@ -31,7 +30,7 @@ export fn create_particle_system(env: beam.Env, argc: c_int, argv: [*c]const bea
     return beam.makeInt(env, @intCast(ref));
 }
 
-export fn integrate(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
+export fn integrate(env: beam.Env, argc: i32, argv: [*c]const beam.Term) beam.Term {
     if (argc != 2) return beam.makeError(env, "expected 2 arguments");
 
     const system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
@@ -48,27 +47,30 @@ export fn integrate(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.
     return beam.makeAtom(env, "ok");
 }
 
-export fn add_particle(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
+export fn add_particle(env: beam.Env, argc: i32, argv: [*c]const beam.Term) beam.Term {
     if (argc != 2) return beam.makeError(env, "expected 2 arguments");
 
-    const system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
+    const _system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
+    _ = _system_ref;
 
     // Parse particle data from Elixir map
-    const particle_data = argv[1];
+    const _particle_data = argv[1];
+    _ = _particle_data;
     // This would need more implementation to parse the map into a Particle struct
 
     // For now, stub
     return beam.makeAtom(env, "ok");
 }
 
-export fn get_particles(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
+export fn get_particles(env: beam.Env, argc: i32, argv: [*c]const beam.Term) beam.Term {
     if (argc != 1) return beam.makeError(env, "expected 1 argument");
 
-    const system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
+    const _system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
 
-    const system = systems.get(@intCast(system_ref)) orelse {
+    const _system = systems.get(@intCast(_system_ref)) orelse {
         return beam.makeError(env, "system not found");
     };
+    _ = _system;
 
     // Convert particles to Elixir list
     // This would need implementation to convert Particle structs to Elixir terms
@@ -77,7 +79,7 @@ export fn get_particles(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) b
     return beam.makeList(env, &[_]beam.Term{});
 }
 
-export fn destroy_system(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
+export fn destroy_system(env: beam.Env, argc: i32, argv: [*c]const beam.Term) beam.Term {
     if (argc != 1) return beam.makeError(env, "expected 1 argument");
 
     const system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
@@ -89,4 +91,29 @@ export fn destroy_system(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) 
     } else {
         return beam.makeError(env, "system not found");
     }
+}
+
+// NIF function definitions
+const nif_funcs = [_]beam.NifFunc{
+    .{ .name = "create_particle_system", .arity = 1, .func = create_particle_system },
+    .{ .name = "destroy_system", .arity = 1, .func = destroy_system },
+    .{ .name = "integrate", .arity = 2, .func = integrate },
+    .{ .name = "add_particle", .arity = 2, .func = add_particle },
+    .{ .name = "get_particles", .arity = 1, .func = get_particles },
+    // Add other functions as implemented
+};
+
+// NIF module definition
+const nif_module = beam.NifModule{
+    .name = "aii_runtime",
+    .funcs = &nif_funcs,
+    .load = null,
+    .reload = null,
+    .upgrade = null,
+    .unload = null,
+};
+
+// Export the NIF initialization function
+export fn nif_init() callconv(.c) ?*const beam.NifModule {
+    return &nif_module;
 }

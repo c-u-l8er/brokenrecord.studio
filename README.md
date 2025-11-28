@@ -1,20 +1,20 @@
-# BrokenRecord Zero
+# AII (Artificial Interaction Intelligence)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/c-u-l8er/brokenrecord.studio/ci.yml)](https://github.com/c-u-l8er/brokenrecord.studio/actions)
-[![Hex.pm Version](https://img.shields.io/hexpm/v/broken_record_zero.svg)](https://hex.pm/packages/broken_record_zero)
+[![Hex.pm Version](https://img.shields.io/hexpm/v/aii.svg)](https://hex.pm/packages/aii)
 
-**Zero-overhead physics compiler for Elixir.** Transforms high-level physics DSL into optimized native code with compile-time conservation guarantees.
+**High-level physics DSL for Elixir.** Defines agents, interactions, and conservation laws with compile-time verification and hardware-accelerated runtime simulation.
 
-[🌐 Live Demo](index.html) | [📚 Examples](examples.html) | [📊 Benchmarks](benchmarks/) | [📖 Docs](scrap/docs/design.md)
+[🌐 Live Demo](index.html) | [📚 Examples](examples.html) | [📖 Docs](scrap/docs/design.md)
 
 ## ✨ Features
 
-- ⚡ **Blazing Fast**: Raw C backend achieves **2.5B operations/sec** (10k particles × 1000 steps)
-- ✅ **Conservation Guaranteed**: Energy/momentum verified at **compile time**
-- 🎯 **Zero Runtime Overhead**: DSL abstractions erased during compilation
-- 🔧 **SIMD Optimized**: AVX2 vectorization processes 8 particles/instruction
-- 🧬 **Actor Model**: Full actor system with supervision trees & load balancing
+- ✅ **Conservation Guaranteed**: Energy/momentum verified at compile time
+- 🎯 **Type-Safe DSL**: High-level physics definitions with compile-time guarantees
+- 🔧 **Hardware Dispatch**: Automatic selection of CPU/GPU/CUDA/RT cores
+- 🧬 **Agent-Based Modeling**: Define particles, interactions, and physical laws
 - ⚛️ **Chemical Reactions**: Mass-conserving reaction networks
-- 🚀 **GPU Ready**: CUDA target (coming soon)
+- 🚀 **NIF Runtime**: High-performance Zig-based particle physics engine
+- 📊 **Performance Monitoring**: Real-time hardware utilization and conservation verification
 
 ## 🚀 Quick Start
 
@@ -23,7 +23,7 @@
 ```elixir
 defp deps do
   [
-    {:broken_record_zero, "~> 0.1.0"}
+    {:aii, "~> 0.1.0"}
   ]
 end
 ```
@@ -31,87 +31,94 @@ end
 ### 2. Basic Physics Simulation
 
 ```elixir
-defmodule GravitySim do
-  use BrokenRecord.Zero
+defmodule MyPhysics do
+  use AII
 
-  defsystem NBody do
-    compile_target :cpu
-    optimize [:simd, :spatial_hash]
+  defagent Particle do
+    field :position, Vec3
+    field :velocity, Vec3
+    field :mass, Energy
+    conserves [:energy, :momentum]
+  end
 
-    agents do
-      defagent Particle do
-        field :position, :vec3
-        field :velocity, :vec3
-        field :mass, :float
-        conserves [:energy, :momentum]
-      end
-    end
+  definteraction gravity(p1 :: Particle, p2 :: Particle) do
+    r_vec = p2.position - p1.position
+    r = magnitude(r_vec)
+    force = 6.67e-11 * p1.mass * p2.mass / (r * r)
+    dir = normalize(r_vec)
 
-    rules do
-      interaction gravity(p1: Particle, p2: Particle, dt: float) do
-        r_vec = p2.position - p1.position
-        r = length(r_vec)
-        force = 6.67e-11 * p1.mass * p2.mass / (r * r)
-        dir = r_vec / r
-        
-        p1.velocity += dir * force * dt / p1.mass
-        p2.velocity -= dir * force * dt / p2.mass
-      end
+    p1.velocity = p1.velocity + dir * force * dt / p1.mass
+    p2.velocity = p2.velocity - dir * force * dt / p2.mass
+  end
 
-      interaction integrate(p: Particle, dt: float) do
-        p.position += p.velocity * dt
-      end
-    end
+  definteraction integrate(p :: Particle) do
+    p.position = p.position + p.velocity * dt
   end
 end
 
 # Run simulation
 particles = [
-  %{position: {0,0,10}, velocity: {1,0,0}, mass: 1.0},
-  %{position: {5,0,10}, velocity: {-1,0,0}, mass: 1.0}
+  %{position: {0.0, 0.0, 10.0}, velocity: {1.0, 0.0, 0.0}, mass: 1.0, energy: 0.5, id: 1},
+  %{position: {5.0, 0.0, 10.0}, velocity: {-1.0, 0.0, 0.0}, mass: 1.0, energy: 0.5, id: 2}
 ]
 
-result = GravitySim.NBody.simulate(particles, steps: 1000, dt: 0.01)
+{:ok, result} = AII.run_simulation(MyPhysics, steps: 1000, dt: 0.01, particles: particles)
 IO.inspect(result)
 ```
 
 ## 📊 Performance Benchmarks
 
-| Benchmark | Speed | Details |
-|-----------|-------|---------|
-| **Raw C (10k particles)** | **2.5B ops/sec** | 10k particles × 1000 steps |
-| **DSL Compilation (Simple)** | **26M ops/sec** | Parse → IR → Codegen |
-| **Actor Model (1000 actors)** | **1.2M steps/sec** | Message passing + supervision |
-| **N-Body Gravity** | **500k particles/sec** | Full physics simulation |
+Performance benchmarks will be available once the full Zig runtime implementation is complete and tested.
 
-See detailed [benchmark reports](benchmarks/).
+See [benchmarks/](benchmarks/) for future performance reports.
 
 ## 🏗️ Architecture
 
 ```
 High-Level Elixir DSL
          ↓ (compile-time)
-Optimized C (SIMD/AVX2)
-         ↓ (NIF)
-Zero-overhead Elixir Runtime
+Type Checking & Conservation Verification
+         ↓ (runtime)
+Zig NIF Particle Physics Engine
+         ↓ (hardware dispatch)
+CPU/GPU/CUDA/RT Core Acceleration
 ```
 
 ## 🔧 Build & Test
 
+### Prerequisites
+
+- Elixir 1.14+
+- Erlang 25+
+- Zig 0.11+ (for NIF compilation)
+
+### Setup
+
 ```bash
 mix deps.get
-mix compile          # Builds NIF
-mix test             # Unit tests
-mix run benchmarks/  # Performance
-mix phx.server       # Example server
+mix compile          # Builds Zig NIF
+mix test             # Runs 184 comprehensive tests
+```
+
+### Development
+
+```bash
+# Run specific test suite
+mix test test/aii/
+
+# Run examples
+mix run examples/my_physics.ex
+
+# Build NIF manually
+cd runtime/zig && zig build
 ```
 
 ## 📚 Examples
 
-- [Actor Model](examples/actor_model.ex) - Concurrent actors with supervision
-- [Chemical Reactions](examples/chemical_reaction_net.ex) - Mass-conserving networks
-- [N-Body Gravity](examples/gravity_simulation.ex) - Solar system simulation
-- [Custom Physics](examples/my_physics.ex) - Collisions + GPU-ready
+- [Particle Physics](examples/aii_particle_physics.ex) - Basic particle interactions
+- [Chemical Reactions](examples/aii_chemical_reactions.ex) - Mass-conserving networks
+- [Hardware Dispatch](examples/aii_hardware_dispatch.ex) - Multi-accelerator simulation
+- [Conservation Verification](examples/aii_conservation_verification.ex) - Physics law checking
 
 [View Interactive Examples](examples.html)
 
@@ -120,10 +127,10 @@ mix phx.server       # Example server
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 **Priority Areas:**
-- GPU (CUDA) backend
-- Rigid body dynamics
-- Constraint solvers
-- Visualization tooling
+- Complete Zig runtime implementation
+- GPU/CUDA acceleration
+- Performance benchmarking
+- Visualization and monitoring tools
 
 ## 📄 License
 
@@ -132,9 +139,9 @@ MIT © brokenrecord.studio
 ## Quick Commands
 
 ```sh
-# Compile the NIF
-make -C c_src                    
+# Compile the Zig NIF
+cd runtime/zig && zig build
 
 # Copy to priv directory
-mkdir -p priv && cp c_src/brokenrecord_physics.so priv/  
+cp runtime/zig/zig-out/lib/libaii_runtime.so priv/
 ```

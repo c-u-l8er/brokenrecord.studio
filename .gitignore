@@ -2,3 +2,5 @@ deps
 _build/
 .elixir_ls/
 priv/*.so
+zig
+zig-*/

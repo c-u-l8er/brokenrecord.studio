@@ -299,7 +299,17 @@ defmodule Examples.AIIParticlePhysics do
     dt = Keyword.get(opts, :dt, 0.016)
 
     # Use AII.run_simulation with the physics system
-    AII.run_simulation(__MODULE__, steps: steps, dt: dt, particles: initial_state.particles)
+    case AII.run_simulation(__MODULE__, steps: steps, dt: dt, particles: initial_state.particles) do
+      {:ok, result} ->
+        {:ok, %{
+          steps: result.steps,
+          dt: result.dt,
+          results: result.final_particles,
+          hardware: result.hardware,
+          conservation_verified: result.conservation_verified
+        }}
+      error -> error
+    end
   end
 
   @doc """

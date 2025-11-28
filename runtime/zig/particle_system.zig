@@ -1,4 +1,3 @@
-runtime/zig/particle_system.zig
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -40,7 +39,7 @@ pub const Particle = struct {
     position: Vec3,
     velocity: Vec3,
     mass: f32,
-    energy: f32,  // Conserved quantity
+    energy: f32, // Conserved quantity
     id: u32,
 
     pub fn kineticEnergy(self: Particle) f32 {
@@ -52,7 +51,8 @@ pub const Particle = struct {
 pub const ParticleSystem = struct {
     particles: []Particle,
     allocator: Allocator,
-    total_energy: f32,  // Track for conservation
+    total_energy: f32, // Track for conservation
+    particle_count: usize,
 
     pub fn init(allocator: Allocator, capacity: usize) !ParticleSystem {
         const particles = try allocator.alloc(Particle, capacity);
@@ -60,6 +60,7 @@ pub const ParticleSystem = struct {
             .particles = particles,
             .allocator = allocator,
             .total_energy = 0.0,
+            .particle_count = 0,
         };
     }
 
@@ -89,8 +90,7 @@ pub const ParticleSystem = struct {
         const tolerance: f32 = 1e-6;
 
         if (@abs(energy_before - energy_after) > tolerance) {
-            std.debug.print("Conservation violated! Before: {d}, After: {d}\n",
-                .{energy_before, energy_after});
+            std.debug.print("Conservation violated! Before: {d}, After: {d}\n", .{ energy_before, energy_after });
             return error.ConservationViolation;
         }
     }
@@ -100,5 +100,17 @@ pub const ParticleSystem = struct {
             const acceleration = force.mul(1.0 / p.mass);
             p.velocity = p.velocity.add(acceleration.mul(dt));
         }
+    }
+
+    pub fn addParticle(self: *ParticleSystem, particle: Particle) !void {
+        if (self.particle_count >= self.particles.len) {
+            return error.OutOfCapacity;
+        }
+        self.particles[self.particle_count] = particle;
+        self.particle_count += 1;
+    }
+
+    pub fn getParticles(self: *const ParticleSystem) []const Particle {
+        return self.particles[0..self.particle_count];
     }
 };

@@ -1171,16 +1171,18 @@ static ERL_NIF_TERM to_elixir_state(ErlNifEnv* env, int argc __attribute__((unus
             enif_make_atom(env, "id"),
             enif_make_atom(env, "chemical_type")
         };
-        
+
+        // Create proper Elixir string from C string
+        const char* id_str = sys->ids[i] ? sys->ids[i] : "default";
+        size_t id_len = sys->ids[i] ? strlen(sys->ids[i]) : 7;
+        ERL_NIF_TERM id_term = enif_make_string_len(env, id_str, id_len, ERL_NIF_UTF8);
+
         ERL_NIF_TERM values[] = {
             pos,
             vel,
             enif_make_double(env, sys->mass[i]),
             radius_val,
-            // Create proper Elixir string from C string
-            const char* id_str = sys->ids[i] ? sys->ids[i] : "default";
-            size_t id_len = sys->ids[i] ? strlen(sys->ids[i]) : 7;
-            ERL_NIF_TERM id_term = enif_make_string_len(env, id_str, id_len, ERL_NIF_UTF8);
+            id_term,
             chemical_type_val
         };
         
@@ -1214,4 +1216,4 @@ static ErlNifFunc nif_funcs[] = {
     {"to_elixir_state", 1, to_elixir_state, 0}
 };
 
-ERL_NIF_INIT(Elixir.BrokenRecord.Zero.NIF, nif_funcs, load, NULL, NULL, NULL)
+ERL_NIF_INIT(Elixir.AII.NIF, nif_funcs, load, NULL, NULL, NULL)

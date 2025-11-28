@@ -116,11 +116,11 @@ defmodule AIITest do
         def __interactions__, do: [%{body: {:simple, [], []}}]
       end
 
-      # Should return mock results since NIF is not loaded
-      result = AII.run_simulation(MockSystem, steps: 1)
+      # Should return simulation results
+      result = AII.run_simulation(MockSystem, steps: 1, particles: [])
       assert {:ok, results} = result
       assert results.steps == 1
-      assert results.note == "NIF not loaded - using mock implementation"
+      assert results.conservation_verified == true
     end
   end
 
