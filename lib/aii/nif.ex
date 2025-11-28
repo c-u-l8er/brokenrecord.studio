@@ -7,7 +7,12 @@ defmodule AII.NIF do
   @on_load :load_nif
 
   def load_nif do
-    :ok
+    nif_path = Path.join([:code.priv_dir(:aii), "zig", "libaii_runtime.so"])
+
+    case :erlang.load_nif(nif_path, 0) do
+      :ok -> :ok
+      {:error, reason} -> raise "Failed to load NIF: #{inspect(reason)}"
+    end
   end
 
   # Particle System Management
@@ -17,18 +22,12 @@ defmodule AII.NIF do
 
   Returns a reference integer that can be used with other functions.
   """
-  def create_particle_system(_capacity), do: 1
+  def create_particle_system(_capacity), do: :erlang.nif_error(:not_loaded)
 
   @doc """
   Destroys a particle system and frees its memory.
   """
-  def destroy_system(system_ref) do
-    if system_ref == 1 do
-      :ok
-    else
-      {:error, "system not found"}
-    end
-  end
+  def destroy_system(_system_ref), do: :erlang.nif_error(:not_loaded)
 
   # Particle Operations
 
@@ -42,12 +41,12 @@ defmodule AII.NIF do
   - :energy - float
   - :id - integer
   """
-  def add_particle(_system_ref, _particle_data), do: :ok
+  def add_particle(_system_ref, _particle_data), do: :erlang.nif_error(:not_loaded)
 
   @doc """
   Retrieves all particles from the system as a list of maps.
   """
-  def get_particles(_system_ref), do: []
+  def get_particles(_system_ref), do: :erlang.nif_error(:not_loaded)
 
   @doc """
   Updates a specific particle in the system.
@@ -65,7 +64,7 @@ defmodule AII.NIF do
   Integrates the particle system forward in time using Euler integration.
   Verifies conservation laws and returns :ok or {:error, reason}.
   """
-  def integrate(_system_ref, _dt), do: :ok
+  def integrate(_system_ref, _dt), do: :erlang.nif_error(:not_loaded)
 
   @doc """
   Applies a force to all particles in the system.
