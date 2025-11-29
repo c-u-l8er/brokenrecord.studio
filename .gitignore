@@ -4,3 +4,4 @@ _build/
 priv/*.so
 zig
 zig-*/
+runtime/zig/.zig-cache/
