@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Open Source - brokenrecord.studio</title>
     <meta name="description" content="Explore the source code of brokenrecord.studio - Physics as Code Programming Language">
-    
+
     <!-- Marked.js for markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
+
     <!-- Prism.js for syntax highlighting -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -20,14 +20,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-makefile.min.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-zig.min.js"></script>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         :root {
             --bg-dark: #0a0a0f;
             --bg-gradient-start: #1a0f2e;
@@ -43,7 +44,7 @@
             --card-bg: rgba(30, 41, 59, 0.5);
             --border-color: rgba(168, 85, 247, 0.2);
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
@@ -51,7 +52,7 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
-        
+
         /* Animated background particles */
         .particles {
             position: fixed;
@@ -62,7 +63,7 @@
             pointer-events: none;
             z-index: 0;
         }
-        
+
         .particle {
             position: absolute;
             width: 4px;
@@ -72,13 +73,13 @@
             opacity: 0.3;
             animation: float 20s infinite;
         }
-        
+
         @keyframes float {
             0%, 100% { transform: translate(0, 0) rotate(0deg); }
             33% { transform: translate(30px, -30px) rotate(120deg); }
             66% { transform: translate(-30px, 30px) rotate(240deg); }
         }
-        
+
         /* Container */
         .container {
             max-width: 1400px;
@@ -87,7 +88,7 @@
             position: relative;
             z-index: 1;
         }
-        
+
         /* Navigation */
         nav {
             padding: 2rem 0;
@@ -95,7 +96,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .logo {
             font-size: 1.5rem;
             font-weight: 700;
@@ -104,41 +105,41 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         .nav-links {
             display: flex;
             gap: 2rem;
             list-style: none;
         }
-        
+
         .nav-links a {
             color: var(--text-secondary);
             text-decoration: none;
             transition: color 0.3s;
             font-size: 0.95rem;
         }
-        
+
         .nav-links a:hover {
             color: var(--accent-cyan);
         }
-        
+
         .nav-links a.active {
             color: var(--accent-cyan);
         }
-        
+
         /* Hero Section */
         .hero {
             padding: 4rem 0;
             text-align: center;
         }
-        
+
         .hero h1 {
             font-size: 3.5rem;
             font-weight: 900;
             margin-bottom: 1.5rem;
             line-height: 1.1;
         }
-        
+
         .hero h1 .gradient-text {
             background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan), var(--accent-pink));
             -webkit-background-clip: text;
@@ -147,12 +148,12 @@
             background-size: 200% 200%;
             animation: gradient-shift 3s ease infinite;
         }
-        
+
         @keyframes gradient-shift {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
-        
+
         .hero p {
             font-size: 1.25rem;
             color: var(--text-secondary);
@@ -161,7 +162,7 @@
             margin-left: auto;
             margin-right: auto;
         }
-        
+
         /* Search Bar */
         .search-container {
             max-width: 600px;
@@ -193,7 +194,7 @@
             transform: translateY(-50%);
             color: var(--text-secondary);
         }
-        
+
         /* Source Code Grid */
         .source-container {
             display: grid;
@@ -352,7 +353,7 @@
             color: var(--text-primary);
             background: var(--card-bg);
         }
-        
+
         /* Prism.js syntax highlighting overrides */
         .content pre[class*="language-"] {
             background: var(--code-bg);
@@ -362,7 +363,7 @@
             overflow: auto;
             border: 1px solid var(--border-color);
         }
-        
+
         .content code[class*="language-"] {
             background: none;
             color: inherit;
@@ -370,7 +371,7 @@
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 0.9rem;
         }
-        
+
         /* Better table styling */
         .content table {
             border-collapse: collapse;
@@ -380,23 +381,23 @@
             overflow: hidden;
             border: 1px solid var(--border-color);
         }
-        
+
         .content th, .content td {
             padding: 0.75rem 1rem;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
-        
+
         .content th {
             background: var(--card-bg);
             font-weight: 600;
             color: var(--text-primary);
         }
-        
+
         .content tr:last-child td {
             border-bottom: none;
         }
-        
+
         .content tr:hover {
             background: rgba(6, 182, 212, 0.05);
         }
@@ -440,6 +441,11 @@
         .language-c {
             background: rgba(34, 197, 94, 0.2);
             color: #4ade80;
+        }
+
+        .language-zig {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
         }
 
         .language-makefile {
@@ -525,7 +531,7 @@
 <body>
     <!-- Animated particles background -->
     <div class="particles" id="particles"></div>
-    
+
     <div class="container">
         <!-- Navigation -->
         <nav>
@@ -539,16 +545,16 @@
                 <li><a href="https://github.com/c-u-l8er/brokenrecord.studio">GitHub</a></li>
             </ul>
         </nav>
-        
+
         <!-- Hero Section -->
         <section class="hero">
             <h1>
                 <span class="gradient-text">Open Source Code</span>
             </h1>
             <p>
-                Explore the complete source code of brokenrecord.studio - from Elixir compiler to C native extensions
+                Explore the complete source code of brokenrecord.studio - from Elixir compiler to Zig native extensions
             </p>
-            
+
             <!-- Search Bar -->
             <div class="search-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search source files...">
@@ -564,9 +570,9 @@
                 <ul class="source-list" id="elixirList">
                     <!-- Elixir files will be loaded here -->
                 </ul>
-                
-                <h3 style="margin-top: 2rem;">C Source</h3>
-                <ul class="source-list" id="cList">
+
+                <h3 style="margin-top: 2rem;">Zig Source</h3>
+                <ul class="source-list" id="zigList">
                     <!-- C files will be loaded here -->
                 </ul>
             </aside>
@@ -577,7 +583,7 @@
             </main>
         </section>
     </div>
-    
+
     <!-- Footer -->
     <footer>
         <div class="container">
@@ -595,7 +601,7 @@
         // Generate animated particles
         const particlesContainer = document.getElementById('particles');
         const particleCount = 50;
-        
+
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
@@ -605,109 +611,115 @@
             particle.style.animationDuration = (15 + Math.random() * 10) + 's';
             particlesContainer.appendChild(particle);
         }
-        
+
         // Set dynamic copyright year
         document.getElementById('current-year').textContent = new Date().getFullYear();
-        
+
         // Source files data
         let elixirFiles = [
-            'lib/broken_record/zero.ex',
-            'lib/broken_record/zero/compiler.ex',
-            'lib/broken_record/zero/nif.ex',
-            'lib/broken_record/zero/analyzer.ex',
-            'lib/broken_record/zero/codegen.ex',
-            'lib/broken_record/zero/dsl.ex',
-            'lib/broken_record/zero/ir.ex',
-            'lib/broken_record/zero/optimizer.ex',
-            'lib/broken_record/zero/runtime.ex'
+            'lib/aii.ex',
+            'lib/aii/codegen.ex',
+            'lib/aii/conservation_checker.ex',
+            'lib/aii/dsl.ex',
+            'lib/aii/hardware_dispatcher.ex',
+            'lib/aii/nif.ex',
+            'lib/aii/runtime.ex',
+            'lib/aii/types.ex',
+            'lib/my_physics.ex'
         ];
-        
-        let cFiles = [
-            'c_src/brokenrecord_physics.c',
-            'c_src/Makefile'
+
+        let zigFiles = [
+            'lib/aii/.Elixir.AII.NIF.zig',
+            'lib/aii/nif_shared.zig',
+            'lib/aii/particle_system.zig'
         ];
-        
+
         let currentFile = null;
         let allFilesContent = {};
-        
+
         // File descriptions
         const fileDescriptions = {
-            'lib/broken_record/zero.ex': {
-                title: 'Zero Compiler Main Module',
-                description: 'The main entry point for the zero-overhead physics compiler. Handles compile-time magic and module generation.',
+            'lib/aii.ex': {
+                title: 'AII Main Module',
+                description: 'Main entry point for the Artificial Interaction Intelligence framework. Provides high-level DSL for physics simulations with compile-time conservation guarantees.',
                 language: 'elixir'
             },
-            'lib/broken_record/zero/compiler.ex': {
-                title: 'Compiler Pipeline',
-                description: 'The main compiler pipeline that transforms DSL → IR → Optimized IR → Native Code → Machine Code.',
-                language: 'elixir'
-            },
-            'lib/broken_record/zero/nif.ex': {
-                title: 'Native Interface Functions',
-                description: 'Native Implemented Functions for physics simulation. Handles loading and calling C extensions.',
-                language: 'elixir'
-            },
-            'lib/broken_record/zero/analyzer.ex': {
-                title: 'Type and Conservation Analyzer',
-                description: 'Performs type inference and conservation law analysis on the interaction net IR.',
-                language: 'elixir'
-            },
-            'lib/broken_record/zero/codegen.ex': {
+            'lib/aii/codegen.ex': {
                 title: 'Code Generator',
-                description: 'Generates native C code from optimized IR and compiles it to machine code.',
+                description: 'Backend-agnostic code generation for CPU, GPU, CUDA, Tensor, and RT cores.',
                 language: 'elixir'
             },
-            'lib/broken_record/zero/dsl.ex': {
+            'lib/aii/conservation_checker.ex': {
+                title: 'Conservation Verifier',
+                description: 'Compile-time checking of physics laws and conservation properties.',
+                language: 'elixir'
+            },
+            'lib/aii/dsl.ex': {
                 title: 'Domain Specific Language',
-                description: 'Defines the physics DSL for describing agents, interactions, and conservation laws.',
+                description: 'Macros for defining agents, interactions, and conservation laws.',
                 language: 'elixir'
             },
-            'lib/broken_record/zero/ir.ex': {
-                title: 'Intermediate Representation',
-                description: 'Defines the interaction net intermediate representation used by the compiler.',
+            'lib/aii/hardware_dispatcher.ex': {
+                title: 'Hardware Dispatcher',
+                description: 'Automatic accelerator selection with performance and efficiency hints.',
                 language: 'elixir'
             },
-            'lib/broken_record/zero/optimizer.ex': {
-                title: 'Optimizer Passes',
-                description: 'Implements various optimization passes for the IR including memory layout and performance optimizations.',
+            'lib/aii/nif.ex': {
+                title: 'Native Interface',
+                description: 'Interface to high-performance Zig runtime for physics computation.',
                 language: 'elixir'
             },
-            'lib/broken_record/zero/runtime.ex': {
-                title: 'Runtime Executor',
-                description: 'Runtime system for executing compiled physics simulations with native performance.',
+            'lib/aii/runtime.ex': {
+                title: 'Runtime System',
+                description: 'Runtime execution engine for compiled physics simulations.',
                 language: 'elixir'
             },
-            'c_src/brokenrecord_physics.c': {
-                title: 'Physics Engine (C)',
-                description: 'High-performance C implementation of physics kernels with SIMD optimization and NIF interface.',
-                language: 'c'
+            'lib/aii/types.ex': {
+                title: 'Type System',
+                description: 'Core types with conservation guarantees for energy, momentum, and vector math.',
+                language: 'elixir'
             },
-            'c_src/Makefile': {
-                title: 'Build Configuration',
-                description: 'Makefile for compiling the C native extension with optimization flags and dependencies.',
-                language: 'makefile'
+            'lib/my_physics.ex': {
+                title: 'Example Physics System',
+                description: 'Example implementation demonstrating the AII DSL for particle physics.',
+                language: 'elixir'
+            },
+            'lib/aii/.Elixir.AII.NIF.zig': {
+                title: 'Zig NIF Implementation',
+                description: 'Zig native interface functions for high-performance physics simulation.',
+                language: 'zig'
+            },
+            'lib/aii/nif_shared.zig': {
+                title: 'Shared NIF Utilities',
+                description: 'Shared utilities and data structures for Zig NIFs.',
+                language: 'zig'
+            },
+            'lib/aii/particle_system.zig': {
+                title: 'Particle System',
+                description: 'Core particle system simulation implemented in Zig.',
+                language: 'zig'
             }
         };
-        
+
         // Initialize source files
         async function initSourceFiles() {
             try {
                 console.log('Initializing source files...');
-                
+
                 // Initialize marked.js
                 if (!initializeMarked()) {
                     console.warn('Marked.js initialization failed, continuing with basic functionality');
                 }
-                
+
                 await loadAllFiles();
                 console.log('Files loaded:', Object.keys(allFilesContent));
                 renderFileLists();
-                
+
                 // Load first file by default or check URL hash
                 const hash = window.location.hash.substring(1);
-                if (hash && (elixirFiles.includes(hash) || cFiles.includes(hash))) {
+                if (hash && (elixirFiles.includes(hash) || zigFiles.includes(hash))) {
                     loadFile(hash);
-                } else if (elixirFiles.length > 0) {
+                } else {
                     loadFile(elixirFiles[0]);
                 }
             } catch (error) {
@@ -715,13 +727,13 @@
                 showError(`Failed to initialize source files: ${error.message}`);
             }
         }
-        
+
         // Load all files
         async function loadAllFiles() {
-            console.log(`Starting to load ${elixirFiles.length + cFiles.length} files...`);
+            console.log(`Starting to load ${elixirFiles.length + zigFiles.length} files...`);
             let loadedCount = 0;
             let failedCount = 0;
-            
+
             // Load Elixir files
             for (const file of elixirFiles) {
                 try {
@@ -741,9 +753,9 @@
                     console.error(`Error loading ${file}:`, error);
                 }
             }
-            
-            // Load C files
-            for (const file of cFiles) {
+
+            // Load Zig files
+            for (const file of zigFiles) {
                 try {
                     console.log(`Loading file: ${file}`);
                     const response = await fetch(file);
@@ -761,27 +773,27 @@
                     console.error(`Error loading ${file}:`, error);
                 }
             }
-            
+
             console.log(`File loading complete. Success: ${loadedCount}, Failed: ${failedCount}`);
-            
+
             if (loadedCount === 0) {
                 throw new Error('No files could be loaded');
             }
         }
-        
+
         // Render file lists in sidebar
         function renderFileLists() {
             const elixirList = document.getElementById('elixirList');
-            const cList = document.getElementById('cList');
-            
+            const zigList = document.getElementById('zigList');
+
             elixirList.innerHTML = '';
-            cList.innerHTML = '';
-            
+            zigList.innerHTML = '';
+
             // Render Elixir files
             elixirFiles.forEach(file => {
                 const li = document.createElement('li');
                 li.className = 'source-item';
-                
+
                 const a = document.createElement('a');
                 a.href = `#${file}`;
                 a.className = 'source-link';
@@ -791,16 +803,16 @@
                     loadFile(file);
                     window.location.hash = file;
                 });
-                
+
                 li.appendChild(a);
                 elixirList.appendChild(li);
             });
-            
-            // Render C files
-            cFiles.forEach(file => {
+
+            // Render Zig files
+            zigFiles.forEach(file => {
                 const li = document.createElement('li');
                 li.className = 'source-item';
-                
+
                 const a = document.createElement('a');
                 a.href = `#${file}`;
                 a.className = 'source-link';
@@ -810,12 +822,12 @@
                     loadFile(file);
                     window.location.hash = file;
                 });
-                
+
                 li.appendChild(a);
-                cList.appendChild(li);
+                zigList.appendChild(li);
             });
         }
-        
+
         // Format file title
         function formatFileTitle(filepath) {
             const desc = fileDescriptions[filepath];
@@ -824,19 +836,19 @@
             }
             return filepath.split('/').pop();
         }
-        
+
         // Load and display file
         async function loadFile(fileName) {
             try {
                 console.log(`Loading file: ${fileName}`);
-                
+
                 if (!allFilesContent[fileName]) {
                     showError(`File ${fileName} not found or could not be loaded.`);
                     return;
                 }
-                
+
                 currentFile = fileName;
-                
+
                 // Update active state in sidebar
                 document.querySelectorAll('.source-link').forEach(link => {
                     link.classList.remove('active');
@@ -844,27 +856,27 @@
                         link.classList.add('active');
                     }
                 });
-                
+
                 // Get file description
                 const desc = fileDescriptions[fileName];
                 const language = desc ? desc.language : getFileLanguage(fileName);
-                
+
                 // Build content with description and code
                 let content = '';
-                
+
                 if (desc) {
                     content += `<div class="file-description">`;
                     content += `<h4>${desc.title} <span class="language-badge language-${language}">${language}</span></h4>`;
                     content += `<p>${desc.description}</p>`;
                     content += `</div>`;
                 }
-                
+
                 // Add the code
                 const codeContent = allFilesContent[fileName];
                 content += `<pre><code class="language-${language}">${escapeHtml(codeContent)}</code></pre>`;
-                
+
                 document.getElementById('contentArea').innerHTML = content;
-                
+
                 // Re-run Prism.js highlighting for the newly added content
                 if (typeof Prism !== 'undefined') {
                     Prism.highlightAll();
@@ -876,7 +888,7 @@
                 showError(`Failed to load file: ${error.message}`);
             }
         }
-        
+
         // Get file language from extension
         function getFileLanguage(filename) {
             if (filename.endsWith('.ex')) return 'elixir';
@@ -884,14 +896,14 @@
             if (filename.includes('Makefile') || filename.endsWith('.mk')) return 'makefile';
             return 'text';
         }
-        
+
         // Initialize marked.js when available
         function initializeMarked() {
             if (typeof marked === 'undefined') {
                 console.error('Marked.js not loaded');
                 return false;
             }
-            
+
             try {
                 // Configure marked options with simpler approach
                 marked.setOptions({
@@ -899,17 +911,17 @@
                         // Ensure code is a string
                         const codeStr = typeof code === 'string' ? code : String(code || '');
                         const language = lang || 'plaintext';
-                        
+
                         if (Prism.languages[language]) {
                             try {
                                 console.log('Highlighting code for language:', language);
                                 console.log('Code type:', typeof codeStr);
                                 console.log('Prism.languages[language] type:', typeof Prism.languages[language]);
-                                
+
                                 const highlighted = Prism.highlight(codeStr, Prism.languages[language], language);
                                 console.log('Highlighted type:', typeof highlighted);
                                 console.log('Highlighted value:', highlighted);
-                                
+
                                 // Ensure highlighted is a string
                                 const result = typeof highlighted === 'string' ? highlighted : String(highlighted || codeStr);
                                 console.log('Result type:', typeof result);
@@ -925,7 +937,7 @@
                     breaks: true,
                     gfm: true
                 });
-                
+
                 console.log('Marked.js initialized successfully');
                 return true;
             } catch (error) {
@@ -933,14 +945,14 @@
                 return false;
             }
         }
-        
+
         // Escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         // Show error message
         function showError(message) {
             document.getElementById('contentArea').innerHTML = `
@@ -949,32 +961,32 @@
                 </div>
             `;
         }
-        
+
         // Search functionality
         document.getElementById('searchInput').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
-            
+
             if (!searchTerm) {
                 renderFileLists();
                 return;
             }
-            
+
             const elixirList = document.getElementById('elixirList');
-            const cList = document.getElementById('cList');
+            const zigList = document.getElementById('zigList');
             elixirList.innerHTML = '';
-            cList.innerHTML = '';
-            
+            zigList.innerHTML = '';
+
             // Filter Elixir files
             elixirFiles.forEach(file => {
                 const title = formatFileTitle(file).toLowerCase();
                 const content = allFilesContent[file] ? allFilesContent[file].toLowerCase() : '';
                 const desc = fileDescriptions[file];
                 const description = desc ? desc.description.toLowerCase() : '';
-                
+
                 if (title.includes(searchTerm) || content.includes(searchTerm) || description.includes(searchTerm)) {
                     const li = document.createElement('li');
                     li.className = 'source-item';
-                    
+
                     const a = document.createElement('a');
                     a.href = `#${file}`;
                     a.className = 'source-link';
@@ -984,23 +996,23 @@
                         loadFile(file);
                         window.location.hash = file;
                     });
-                    
+
                     li.appendChild(a);
                     elixirList.appendChild(li);
                 }
             });
-            
-            // Filter C files
-            cFiles.forEach(file => {
+
+            // Filter Zig files
+            zigFiles.forEach(file => {
                 const title = formatFileTitle(file).toLowerCase();
                 const content = allFilesContent[file] ? allFilesContent[file].toLowerCase() : '';
                 const desc = fileDescriptions[file];
                 const description = desc ? desc.description.toLowerCase() : '';
-                
+
                 if (title.includes(searchTerm) || content.includes(searchTerm) || description.includes(searchTerm)) {
                     const li = document.createElement('li');
                     li.className = 'source-item';
-                    
+
                     const a = document.createElement('a');
                     a.href = `#${file}`;
                     a.className = 'source-link';
@@ -1010,37 +1022,37 @@
                         loadFile(file);
                         window.location.hash = file;
                     });
-                    
+
                     li.appendChild(a);
-                    cList.appendChild(li);
+                    zigList.appendChild(li);
                 }
             });
-            
+
             if (elixirList.innerHTML === '') {
                 elixirList.innerHTML = '<li class="source-item"><div class="source-link">No Elixir files found</div></li>';
             }
-            
-            if (cList.innerHTML === '') {
-                cList.innerHTML = '<li class="source-item"><div class="source-link">No C files found</div></li>';
+
+            if (zigList.innerHTML === '') {
+                zigList.innerHTML = '<li class="source-item"><div class="source-link">No Zig files found</div></li>';
             }
         });
-        
+
         // Handle hash change
         window.addEventListener('hashchange', function() {
             const hash = window.location.hash.substring(1);
-            if (hash && (elixirFiles.includes(hash) || cFiles.includes(hash))) {
+            if (hash && (elixirFiles.includes(hash) || zigFiles.includes(hash))) {
                 loadFile(hash);
             }
         });
-        
+
         // Initialize on DOM content loaded
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM Content Loaded');
-            
+
             // Check if external libraries are loaded
             console.log('Marked.js available:', typeof marked !== 'undefined');
             console.log('Prism.js available:', typeof Prism !== 'undefined');
-            
+
             // Wait a bit for external libraries to load
             setTimeout(() => {
                 console.log('Initializing source files after timeout...');
@@ -1049,7 +1061,7 @@
                 initSourceFiles();
             }, 500);
         });
-        
+
         // Also initialize on window load as a fallback
         window.addEventListener('load', function() {
             console.log('Window loaded');
