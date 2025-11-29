@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>brokenrecord.studio - Artificial Interaction Intelligence (AII)</title>
     <meta name="description" content="The next generation of AI. Not tokens—particles. Not attention—interaction. Not hallucination—conservation. Welcome to AII.">
-    
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         :root {
             --bg-dark: #0a0a0f;
             --bg-gradient-start: #1a0f2e;
@@ -28,7 +28,7 @@
             --success: #10b981;
             --error: #ef4444;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
@@ -36,7 +36,7 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
-        
+
         /* Animated background particles */
         .particles {
             position: fixed;
@@ -47,7 +47,7 @@
             pointer-events: none;
             z-index: 0;
         }
-        
+
         .particle {
             position: absolute;
             width: 4px;
@@ -57,13 +57,13 @@
             opacity: 0.3;
             animation: float 20s infinite;
         }
-        
+
         @keyframes float {
             0%, 100% { transform: translate(0, 0) rotate(0deg); }
             33% { transform: translate(30px, -30px) rotate(120deg); }
             66% { transform: translate(-30px, 30px) rotate(240deg); }
         }
-        
+
         /* Container */
         .container {
             max-width: 1400px;
@@ -72,7 +72,7 @@
             position: relative;
             z-index: 1;
         }
-        
+
         /* Navigation */
         nav {
             padding: 2rem 0;
@@ -80,7 +80,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .logo {
             font-size: 1.5rem;
             font-weight: 700;
@@ -89,37 +89,37 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         .nav-links {
             display: flex;
             gap: 2rem;
             list-style: none;
         }
-        
+
         .nav-links a {
             color: var(--text-secondary);
             text-decoration: none;
             transition: color 0.3s;
             font-size: 0.95rem;
         }
-        
+
         .nav-links a:hover {
             color: var(--accent-cyan);
         }
-        
+
         /* Hero Section */
         .hero {
             padding: 6rem 0;
             text-align: center;
         }
-        
+
         .hero h1 {
             font-size: 4.5rem;
             font-weight: 900;
             margin-bottom: 1.5rem;
             line-height: 1.1;
         }
-        
+
         .hero h1 .gradient-text {
             background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan), var(--accent-pink));
             -webkit-background-clip: text;
@@ -128,12 +128,12 @@
             background-size: 200% 200%;
             animation: gradient-shift 3s ease infinite;
         }
-        
+
         @keyframes gradient-shift {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
-        
+
         .version-badge {
             display: inline-block;
             background: linear-gradient(135deg, var(--accent-orange), var(--accent-pink));
@@ -145,7 +145,7 @@
             margin-bottom: 2rem;
             box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
         }
-        
+
         .hero p {
             font-size: 1.5rem;
             color: var(--text-secondary);
@@ -154,14 +154,14 @@
             margin-left: auto;
             margin-right: auto;
         }
-        
+
         .cta-buttons {
             display: flex;
             gap: 1.5rem;
             justify-content: center;
             flex-wrap: wrap;
         }
-        
+
         .btn {
             padding: 1rem 2.5rem;
             border-radius: 0.5rem;
@@ -172,54 +172,54 @@
             cursor: pointer;
             border: none;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
             color: white;
             box-shadow: 0 10px 40px rgba(168, 85, 247, 0.3);
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 15px 50px rgba(168, 85, 247, 0.4);
         }
-        
+
         .btn-secondary {
             background: rgba(255, 255, 255, 0.1);
             color: white;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
+
         .btn-secondary:hover {
             background: rgba(255, 255, 255, 0.15);
             transform: translateY(-2px);
         }
-        
+
         /* AII vs AI Comparison Section */
         .aii-comparison {
             margin: 8rem 0;
             text-align: center;
         }
-        
+
         .aii-comparison h2 {
             font-size: 3rem;
             margin-bottom: 1rem;
         }
-        
+
         .aii-comparison .subtitle {
             font-size: 1.3rem;
             color: var(--text-secondary);
             margin-bottom: 4rem;
         }
-        
+
         .comparison-table {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 3rem;
             margin-top: 3rem;
         }
-        
+
         .comparison-column {
             background: rgba(255, 255, 255, 0.03);
             border-radius: 1rem;
@@ -227,17 +227,17 @@
             border: 2px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s;
         }
-        
+
         .comparison-column.old {
             border-color: rgba(239, 68, 68, 0.3);
         }
-        
+
         .comparison-column.new {
             border-color: var(--accent-cyan);
             background: rgba(6, 182, 212, 0.05);
             position: relative;
         }
-        
+
         .comparison-column.new::before {
             content: '✨ NEW';
             position: absolute;
@@ -249,23 +249,23 @@
             font-size: 0.75rem;
             font-weight: 700;
         }
-        
+
         .comparison-column h3 {
             font-size: 2rem;
             margin-bottom: 2rem;
         }
-        
+
         .comparison-column.old h3 {
             color: var(--error);
         }
-        
+
         .comparison-column.new h3 {
             background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         .comparison-item {
             background: rgba(255, 255, 255, 0.03);
             border-radius: 0.5rem;
@@ -274,34 +274,34 @@
             text-align: left;
             border-left: 3px solid;
         }
-        
+
         .comparison-column.old .comparison-item {
             border-color: rgba(239, 68, 68, 0.5);
         }
-        
+
         .comparison-column.new .comparison-item {
             border-color: var(--accent-cyan);
         }
-        
+
         .comparison-item-title {
             font-weight: 700;
             font-size: 1.1rem;
             margin-bottom: 0.5rem;
         }
-        
+
         .comparison-column.old .comparison-item-title {
             color: var(--error);
         }
-        
+
         .comparison-column.new .comparison-item-title {
             color: var(--accent-cyan);
         }
-        
+
         .comparison-item-desc {
             color: var(--text-secondary);
             font-size: 0.95rem;
         }
-        
+
         /* Code Demo Section */
         .code-demo {
             margin: 6rem 0;
@@ -310,7 +310,7 @@
             gap: 3rem;
             align-items: center;
         }
-        
+
         .code-editor {
             background: var(--code-bg);
             border-radius: 1rem;
@@ -319,23 +319,23 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .code-header {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
         }
-        
+
         .code-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
         }
-        
+
         .code-dot.red { background: var(--error); }
         .code-dot.yellow { background: #fbbf24; }
         .code-dot.green { background: var(--success); }
-        
+
         pre {
             margin: 0;
             font-family: 'Fira Code', 'Courier New', monospace;
@@ -343,25 +343,25 @@
             line-height: 1.6;
             overflow-x: auto;
         }
-        
+
         .keyword { color: var(--accent-purple); }
         .function { color: var(--accent-cyan); }
         .string { color: var(--success); }
         .comment { color: #64748b; font-style: italic; }
         .operator { color: var(--accent-pink); }
-        
+
         .features {
             display: flex;
             flex-direction: column;
             gap: 2rem;
         }
-        
+
         .feature {
             display: flex;
             gap: 1rem;
             align-items: flex-start;
         }
-        
+
         .feature-icon {
             width: 50px;
             height: 50px;
@@ -373,17 +373,17 @@
             font-size: 1.5rem;
             flex-shrink: 0;
         }
-        
+
         .feature h3 {
             font-size: 1.25rem;
             margin-bottom: 0.5rem;
         }
-        
+
         .feature p {
             color: var(--text-secondary);
             font-size: 0.95rem;
         }
-        
+
         /* Stats Section */
         .stats {
             display: grid;
@@ -391,7 +391,7 @@
             gap: 2rem;
             margin: 6rem 0;
         }
-        
+
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -401,13 +401,13 @@
             text-align: center;
             transition: all 0.3s;
         }
-        
+
         .stat-card:hover {
             transform: translateY(-5px);
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--accent-cyan);
         }
-        
+
         .stat-number {
             font-size: 3rem;
             font-weight: 900;
@@ -417,29 +417,29 @@
             background-clip: text;
             margin-bottom: 0.5rem;
         }
-        
+
         .stat-label {
             color: var(--text-secondary);
             font-size: 1.1rem;
         }
-        
+
         /* Use Cases */
         .use-cases {
             margin: 8rem 0;
         }
-        
+
         .use-cases h2 {
             text-align: center;
             font-size: 2.5rem;
             margin-bottom: 3rem;
         }
-        
+
         .use-cases-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
         }
-        
+
         .use-case-card {
             background: rgba(255, 255, 255, 0.03);
             border-radius: 1rem;
@@ -447,17 +447,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s;
         }
-        
+
         .use-case-card:hover {
             transform: translateY(-5px);
             border-color: var(--accent-cyan);
         }
-        
+
         .use-case-card h3 {
             font-size: 1.5rem;
             margin-bottom: 1rem;
         }
-        
+
         /* Footer */
         footer {
             margin-top: 8rem;
@@ -466,7 +466,7 @@
             text-align: center;
             color: var(--text-secondary);
         }
-        
+
         .footer-links {
             display: flex;
             gap: 2rem;
@@ -474,43 +474,43 @@
             margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
-        
+
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
             transition: color 0.3s;
         }
-        
+
         .footer-links a:hover {
             color: var(--accent-cyan);
         }
-        
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2.5rem;
             }
-            
+
             .hero p {
                 font-size: 1.1rem;
             }
-            
+
             .code-demo,
             .comparison-table {
                 grid-template-columns: 1fr;
             }
-            
+
             .nav-links {
                 display: none;
             }
         }
-        
+
         /* Animation for code typing effect */
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
-        
+
         .cursor {
             display: inline-block;
             width: 2px;
@@ -524,7 +524,7 @@
 <body>
     <!-- Animated particles background -->
     <div class="particles" id="particles"></div>
-    
+
     <div class="container">
         <!-- Navigation -->
         <nav>
@@ -538,17 +538,19 @@
                 <li><a href="https://github.com/c-u-l8er/brokenrecord.studio">GitHub</a></li>
             </ul>
         </nav>
-        
+
         <!-- Hero Section -->
         <section class="hero">
-            <div class="version-badge">🚀 Version 2.0 • AII</div>
+            <a href="https://c-u-l8er.link" target="_blank">
+                <div class="version-badge">🚀 Agenticness by C U L8er</div>
+            </a>
             <h1>
                 <span class="gradient-text">Physics as Code</span><br>
                 Conservation as Types<br>
                 <span style="font-size: 0.6em; opacity: 0.9;">Artificial Interaction Intelligence</span>
             </h1>
             <p>
-                Not tokens—<strong>particles</strong>. Not attention—<strong>interaction</strong>. 
+                Not tokens—<strong>particles</strong>. Not attention—<strong>interaction</strong>.
                 Not hallucination—<strong>conservation</strong>. Welcome to <strong>AII</strong>.
             </p>
             <div class="cta-buttons">
@@ -557,7 +559,7 @@
                 <a href="examples.html" class="btn btn-secondary">Examples</a>
             </div>
         </section>
-        
+
         <!-- AII vs AI Comparison Section -->
         <section class="aii-comparison" id="aii">
             <h2>🔄 AI → AII: The Next Evolution</h2>
@@ -565,116 +567,116 @@
                 Traditional AI processes tokens through attention. <strong>AII processes particles through interaction</strong>.
                 This fundamental shift enables physics-grounded reasoning and guaranteed conservation.
             </p>
-            
+
             <div class="comparison-table">
                 <!-- OLD: Traditional AI -->
                 <div class="comparison-column old">
                     <h3>❌ Traditional AI (v1)</h3>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🔤 Token-Based</div>
                         <div class="comparison-item-desc">
-                            Discrete symbols with no physical meaning. 
+                            Discrete symbols with no physical meaning.
                             No conservation, no physics, no grounding.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">👁️ Attention Mechanism</div>
                         <div class="comparison-item-desc">
-                            Learned weights decide what's important. 
+                            Learned weights decide what's important.
                             Black box, no guarantees, can ignore physics.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">💭 Can Hallucinate</div>
                         <div class="comparison-item-desc">
-                            Creates information from nothing. 
+                            Creates information from nothing.
                             Makes up facts, violates conservation.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🎲 Stochastic</div>
                         <div class="comparison-item-desc">
-                            Random sampling, no guarantees. 
+                            Random sampling, no guarantees.
                             Same input → different outputs.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🔢 Floating Point</div>
                         <div class="comparison-item-desc">
-                            Gradients vanish/explode. 
+                            Gradients vanish/explode.
                             Training is unstable, requires tricks.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🖥️ CPU/GPU Only</div>
                         <div class="comparison-item-desc">
-                            Limited to CUDA cores. 
+                            Limited to CUDA cores.
                             Can't leverage RT Cores, Tensor Cores, NPU.
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- NEW: AII -->
                 <div class="comparison-column new">
                     <h3>✨ AII (v2)</h3>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">⚛️ Particle-Based</div>
                         <div class="comparison-item-desc">
-                            Physical entities with mass, position, momentum. 
+                            Physical entities with mass, position, momentum.
                             Conservation laws enforced by type system.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🔄 Interaction Mechanism</div>
                         <div class="comparison-item-desc">
-                            Physics governs information flow. 
+                            Physics governs information flow.
                             Conservation guaranteed, explainable reasoning.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🔒 Cannot Hallucinate</div>
                         <div class="comparison-item-desc">
-                            Information is conserved—can't create from nothing. 
+                            Information is conserved—can't create from nothing.
                             All outputs grounded in input.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">⚖️ Deterministic</div>
                         <div class="comparison-item-desc">
-                            Physics is deterministic (given state). 
+                            Physics is deterministic (given state).
                             Reproducible results, verifiable behavior.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🎯 Conservation Types</div>
                         <div class="comparison-item-desc">
-                            Type system enforces conservation. 
+                            Type system enforces conservation.
                             Stable by construction, no vanishing gradients.
                         </div>
                     </div>
-                    
+
                     <div class="comparison-item">
                         <div class="comparison-item-title">🚀 Heterogeneous Hardware</div>
                         <div class="comparison-item-desc">
-                            RT Cores, Tensor Cores, NPU, CUDA. 
+                            RT Cores, Tensor Cores, NPU, CUDA.
                             Automatic dispatch, 500× speedup.
                         </div>
                     </div>
                 </div>
             </div>
         </section>
-        
+
         <!-- Stats Section -->
         <section class="stats">
             <div class="stat-card">
@@ -694,7 +696,7 @@
                 <div class="stat-label">Conservation Guaranteed</div>
             </div>
         </section>
-        
+
         <!-- Code Demo Section -->
         <section class="code-demo" id="features">
             <div class="code-editor">
@@ -715,7 +717,7 @@
 <span class="keyword">defagent</span> <span class="function">Particle</span> <span class="keyword">do</span>
   <span class="keyword">field</span> <span class="operator">:</span>position, <span class="operator">:</span>vec3
   <span class="keyword">field</span> <span class="operator">:</span>information, <span class="operator">:</span>Conserved<span class="operator">&lt;</span>Float<span class="operator">&gt;</span>
-  
+
   <span class="comment"># ✓ Information conserved</span>
   <span class="keyword">conserves</span> <span class="operator">:</span>information
 <span class="keyword">end</span>
@@ -726,7 +728,7 @@
   <span class="comment"># ✓ 100x faster on NPU</span>
 <span class="keyword">end</span><span class="cursor"></span></code></pre>
             </div>
-            
+
             <div class="features">
                 <div class="feature">
                     <div class="feature-icon">⚛️</div>
@@ -735,7 +737,7 @@
                         <p>Information lives in physical particles with mass, position, and momentum. Conservation is fundamental.</p>
                     </div>
                 </div>
-                
+
                 <div class="feature">
                     <div class="feature-icon">🔄</div>
                     <div>
@@ -743,7 +745,7 @@
                         <p>Physics governs information flow through particle interactions. Explainable and guaranteed correct.</p>
                     </div>
                 </div>
-                
+
                 <div class="feature">
                     <div class="feature-icon">🔒</div>
                     <div>
@@ -751,7 +753,7 @@
                         <p>Type system enforces conservation laws. Can't create information from nothing—zero hallucination.</p>
                     </div>
                 </div>
-                
+
                 <div class="feature">
                     <div class="feature-icon">🚀</div>
                     <div>
@@ -761,7 +763,7 @@
                 </div>
             </div>
         </section>
-        
+
         <!-- Key Innovations -->
         <section class="aii-comparison" style="margin-top: 8rem;">
             <h2>💡 Core Innovations</h2>
@@ -769,38 +771,38 @@
                 <div class="comparison-column new">
                     <h3>🧬 Physics-Grounded Reasoning</h3>
                     <p style="text-align: left; color: var(--text-secondary); margin-top: 1rem;">
-                        Every computation respects conservation laws. Information flow is governed by physics, 
+                        Every computation respects conservation laws. Information flow is governed by physics,
                         not learned weights. Results are guaranteed to be consistent with physical reality.
                     </p>
                 </div>
-                
+
                 <div class="comparison-column new">
                     <h3>🎯 Type-Level Conservation</h3>
                     <p style="text-align: left; color: var(--text-secondary); margin-top: 1rem;">
-                        Conservation laws are enforced by the type system at compile time. 
+                        Conservation laws are enforced by the type system at compile time.
                         Violations are impossible—checked before your code ever runs.
                     </p>
                 </div>
-                
+
                 <div class="comparison-column new">
                     <h3>⚡ Specialized Hardware</h3>
                     <p style="text-align: left; color: var(--text-secondary); margin-top: 1rem;">
-                        RT Cores accelerate spatial queries (collision detection). 
-                        Tensor Cores accelerate matrix operations (force computation). 
+                        RT Cores accelerate spatial queries (collision detection).
+                        Tensor Cores accelerate matrix operations (force computation).
                         NPU accelerates learned dynamics (inference).
                     </p>
                 </div>
-                
+
                 <div class="comparison-column new">
                     <h3>🔍 Explainable by Design</h3>
                     <p style="text-align: left; color: var(--text-secondary); margin-top: 1rem;">
-                        Trace information flow through particle interactions. 
+                        Trace information flow through particle interactions.
                         Conservation tracking shows exactly where information comes from and where it goes.
                     </p>
                 </div>
             </div>
         </section>
-        
+
         <!-- Use Cases -->
         <section class="use-cases">
             <h2>Built For Next-Gen AI</h2>
@@ -808,53 +810,53 @@
                 <div class="use-case-card">
                     <h3>💬 Chatbots Without Hallucination</h3>
                     <p style="color: var(--text-secondary);">
-                        Information is conserved—responses can only contain what's in the context. 
+                        Information is conserved—responses can only contain what's in the context.
                         Zero hallucination guarantee through type system.
                     </p>
                 </div>
-                
+
                 <div class="use-case-card">
                     <h3>🧬 Program Synthesis</h3>
                     <p style="color: var(--text-secondary);">
-                        Discover programs that satisfy conservation laws. 
+                        Discover programs that satisfy conservation laws.
                         Search space exploration through physics simulation on GPU.
                     </p>
                 </div>
-                
+
                 <div class="use-case-card">
                     <h3>🎨 Generative Models</h3>
                     <p style="color: var(--text-secondary);">
-                        Generate text, images, and code with semantic conservation. 
+                        Generate text, images, and code with semantic conservation.
                         Output preserves meaning and information content.
                     </p>
                 </div>
-                
+
                 <div class="use-case-card">
                     <h3>🎮 Reinforcement Learning</h3>
                     <p style="color: var(--text-secondary);">
-                        Value conservation prevents reward hacking. 
+                        Value conservation prevents reward hacking.
                         6× faster convergence with stable gradients by construction.
                     </p>
                 </div>
-                
+
                 <div class="use-case-card">
                     <h3>🔬 Scientific Computing</h3>
                     <p style="color: var(--text-secondary);">
-                        Molecular dynamics, N-body simulations, quantum systems. 
+                        Molecular dynamics, N-body simulations, quantum systems.
                         Type-safe physics from first principles.
                     </p>
                 </div>
-                
+
                 <div class="use-case-card">
                     <h3>🤝 Multi-Agent Systems</h3>
                     <p style="color: var(--text-secondary);">
-                        Swarm intelligence from particle interactions. 
+                        Swarm intelligence from particle interactions.
                         Emergent coordination through conserved information transfer.
                     </p>
                 </div>
             </div>
         </section>
-        
+
         <!-- CTA Section -->
         <section class="hero" style="margin-top: 8rem;">
             <h2 style="font-size: 3rem; margin-bottom: 1.5rem;">
@@ -870,7 +872,7 @@
             </div>
         </section>
     </div>
-    
+
     <!-- Footer -->
     <footer>
         <div class="footer-links">
@@ -880,14 +882,32 @@
             <a href="#">Discord</a>
             <a href="#">Twitter</a>
         </div>
-        <p>&copy; 2025 brokenrecord.studio. Artificial Interaction Intelligence. Version 2.0.</p>
+        <p>&copy; <span id="current-year"></span> brokenrecord.studio. Artificial Interaction Intelligence. Version 2.0.</p>
     </footer>
-    
+
+    <div style="background: #000; padding: 2em 0 1em;">
+        <div style="margin: 0 auto; width: 728px;">
+            <iframe
+                src="https://ampersandboxdesign.com/advertisements/leaderboard-watermark.html"
+                width="728"
+                height="90"
+                frameborder="0"
+                scrolling="no"
+                style="border:none; overflow:hidden;"
+                title="AmperSandboxDesign Branding Design Agency Advertisement"
+            >
+            </iframe>
+            <div style="text-align: right; color: #ccc; font-size: 0.75em;">
+                ^ADVERTISEMENT
+            </div>
+        </div>
+    </div>
+
     <script>
         // Generate animated particles
         const particlesContainer = document.getElementById('particles');
         const particleCount = 50;
-        
+
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
@@ -897,7 +917,7 @@
             particle.style.animationDuration = (15 + Math.random() * 10) + 's';
             particlesContainer.appendChild(particle);
         }
-        
+
         // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
@@ -911,6 +931,9 @@
                 }
             });
         });
+
+        // Set dynamic copyright year
+        document.getElementById("current-year").textContent = new Date().getFullYear();
     </script>
 </body>
 </html>
