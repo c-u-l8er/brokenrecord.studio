@@ -15,7 +15,7 @@ defmodule AII.MixProject do
   # Run "mix compile" to compile Zig NIFs
   def application do
     [
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :zigler]
     ]
   end
 

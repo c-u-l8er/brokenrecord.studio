@@ -116,74 +116,131 @@ pub const ParticleSystem = struct {
 
 ```elixir
 defmodule AII.NIF do
-  @moduledoc "Elixir → Zig Native Interface"
-  
-  @on_load :load_nif
-  
-  def load_nif do
-    path = :filename.join(:code.priv_dir(:aii), 'aii_runtime')
-    :erlang.load_nif(path, 0)
-  end
-  
-  # Fallback definitions (overridden by NIF)
-  def create_particle_system(_capacity), do: :erlang.nif_error(:not_loaded)
-  def add_particle(_system, _particle), do: :erlang.nif_error(:not_loaded)
-  def integrate(_system, _dt), do: :erlang.nif_error(:not_loaded)
-  def get_particles(_system), do: :erlang.nif_error(:not_loaded)
+  @moduledoc "Elixir → Zig Native Interface Functions (NIFs)"
+
+  use Zig, otp_app: :aii
+
+  ~Z"""
+  const std = @import("std");
+  const beam = @import("beam");
+
+  const Vec3 = struct {
+      x: f32,
+      y: f32,
+      z: f32,
+  };
+
+  const Particle = struct {
+    position: Vec3,
+    velocity: Vec3,
+    mass: f32,
+    energy: f32,
+    id: u32,
+
+    pub fn kineticEnergy(self: Particle) f32 {
+      const v2 = self.velocity.x*self.velocity.x + self.velocity.y*self.velocity.y + self.velocity.z*self.velocity.z;
+      return 0.5 * self.mass * v2;
+    }
+  };
+
+  const ParticleSystem = struct {
+    particles: []Particle,
+    allocator: std.mem.Allocator,
+    total_energy: f32,
+    particle_count: usize,
+
+    pub fn init(allocator: std.mem.Allocator, capacity: usize) !ParticleSystem {
+      const particles = try allocator.alloc(Particle, capacity);
+      return ParticleSystem{
+        .particles = particles,
+        .allocator = allocator,
+        .total_energy = 0.0,
+        .particle_count = 0,
+      };
+    }
+
+    pub fn deinit(self: *ParticleSystem) void {
+      self.allocator.free(self.particles);
+    }
+
+    pub fn integrateEuler(self: *ParticleSystem, dt: f32) !void {
+      const energy_before = self.computeTotalEnergy();
+
+      for (self.particles) |*p| {
+        p.position.x += p.velocity.x * dt;
+        p.position.y += p.velocity.y * dt;
+        p.position.z += p.velocity.z * dt;
+      }
+
+      const energy_after = self.computeTotalEnergy();
+      const tolerance: f32 = 1e-6;
+
+      if (@abs(energy_before - energy_after) > tolerance) {
+        std.debug.print("Conservation violated! Before: {d}, After: {d}\n", .{energy_before, energy_after});
+        return error.ConservationViolation;
+      }
+    }
+
+    pub fn computeTotalEnergy(self: *const ParticleSystem) f32 {
+      var total: f32 = 0.0;
+      for (self.particles) |p| {
+        total += p.kineticEnergy();
+      }
+      return total;
+    }
+  };
+
+  var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+  const allocator = gpa.allocator();
+  var systems = std.AutoHashMap(u64, *ParticleSystem).init(allocator);
+  var next_id: u64 = 1;
+
+  const Error = error{ AllocFail, SystemNotFound, ConservationViolated };
+
+  pub fn create_particle_system(capacity: i64) Error!u64 {
+    const system = ParticleSystem.init(allocator, @intCast(capacity)) catch return Error.AllocFail;
+    const system_ptr = allocator.create(ParticleSystem) catch return Error.AllocFail;
+    system_ptr.* = system;
+
+    const id = next_id;
+    next_id += 1;
+    systems.put(id, system_ptr) catch return Error.AllocFail;
+
+    return id;
+  }
+
+  pub fn integrate(system_ref: u64, dt: f64) Error!void {
+    const system = systems.get(system_ref) orelse return Error.SystemNotFound;
+    system.integrateEuler(@floatCast(dt)) catch return Error.ConservationViolation;
+  }
+
+  pub fn add_particle(system_ref: u64, particle: Particle) Error!void {
+    const system = systems.get(system_ref) orelse return Error.SystemNotFound;
+    system.addParticle(particle) catch return Error.AllocFail;
+  }
+
+  pub fn get_particles(system_ref: u64) Error![]const Particle {
+    const system = systems.get(system_ref) orelse return Error.SystemNotFound;
+    return system.getParticles();
+  }
+
+  pub fn destroy_system(system_ref: u64) Error!void {
+    if (systems.fetchRemove(system_ref)) |kv| {
+      kv.value.deinit();
+      allocator.destroy(kv.value);
+    } else {
+      return Error.SystemNotFound;
+    }
+  }
+  """
 end
 ```
 
-**File:** `runtime/zig/nif.zig`
+**File:** `runtime/zig/particle_system.zig` (actual implementation)
 
 ```zig
-const std = @import("std");
-const beam = @import("beam");  // Zig BEAM integration
-const ParticleSystem = @import("particle_system.zig").ParticleSystem;
-
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-const allocator = gpa.allocator();
-
-// Store particle systems by reference
-var systems = std.AutoHashMap(usize, *ParticleSystem).init(allocator);
-
-export fn create_particle_system(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
-    if (argc != 1) return beam.makeError(env, "expected 1 argument");
-    
-    const capacity = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid capacity");
-    
-    const system = ParticleSystem.init(allocator, @intCast(capacity)) catch {
-        return beam.makeError(env, "failed to create system");
-    };
-    
-    const system_ptr = allocator.create(ParticleSystem) catch {
-        return beam.makeError(env, "allocation failed");
-    };
-    system_ptr.* = system;
-    
-    const ref = @intFromPtr(system_ptr);
-    systems.put(ref, system_ptr) catch {
-        return beam.makeError(env, "failed to store system");
-    };
-    
-    return beam.makeInt(env, @intCast(ref));
-}
-
-export fn integrate(env: beam.Env, argc: c_int, argv: [*c]const beam.Term) beam.Term {
-    if (argc != 2) return beam.makeError(env, "expected 2 arguments");
-    
-    const system_ref = beam.getInt(env, argv[0]) catch return beam.makeError(env, "invalid system");
-    const dt = beam.getFloat(env, argv[1]) catch return beam.makeError(env, "invalid dt");
-    
-    const system = systems.get(@intCast(system_ref)) orelse {
-        return beam.makeError(env, "system not found");
-    };
-    
-    system.integrateEuler(@floatCast(dt)) catch {
-        return beam.makeError(env, "conservation violated");
-    };
-    
-    return beam.makeAtom(env, "ok");
-}
+// Full implementation in runtime/zig/particle_system.zig
+// Integrated with Zigler for automatic NIF generation
 ```
 
 ---
@@ -230,72 +287,11 @@ pub fn build(b: *std.Build) void {
 
 ### Conservation Tracking
 
-**File:** `runtime/zig/conservation.zig`
+**File:** `runtime/zig/conservation.zig` (runtime verification)
 
 ```zig
-const std = @import("std");
-
-pub fn Conserved(comptime T: type) type {
-    return struct {
-        value: T,
-        initial: T,
-        source: []const u8,
-        
-        const Self = @This();
-        
-        pub fn init(value: T, source: []const u8) Self {
-            return Self{
-                .value = value,
-                .initial = value,
-                .source = source,
-            };
-        }
-        
-        pub fn set(self: *Self, new_value: T) void {
-            self.value = new_value;
-        }
-        
-        pub fn delta(self: Self) T {
-            return self.value - self.initial;
-        }
-        
-        pub fn reset(self: *Self) void {
-            self.initial = self.value;
-        }
-    };
-}
-
-pub const ConservationTracker = struct {
-    quantities: std.StringHashMap(f32),
-    allocator: std.mem.Allocator,
-    
-    pub fn init(allocator: std.mem.Allocator) ConservationTracker {
-        return ConservationTracker{
-            .quantities = std.StringHashMap(f32).init(allocator),
-            .allocator = allocator,
-        };
-    }
-    
-    pub fn deinit(self: *ConservationTracker) void {
-        self.quantities.deinit();
-    }
-    
-    pub fn capture(self: *ConservationTracker, name: []const u8, value: f32) !void {
-        try self.quantities.put(name, value);
-    }
-    
-    pub fn verify(self: *ConservationTracker, name: []const u8, current: f32, tolerance: f32) !void {
-        const initial = self.quantities.get(name) orelse return error.QuantityNotTracked;
-        
-        if (@abs(initial - current) > tolerance) {
-            std.debug.print(
-                "Conservation violated: {s}\n  Initial: {d}\n  Current: {d}\n  Delta: {d}\n",
-                .{name, initial, current, current - initial}
-            );
-            return error.ConservationViolation;
-        }
-    }
-};
+// Runtime conservation checking
+// Compile-time verification handled by Elixir conservation_checker.ex
 ```
 
 ---

@@ -23,7 +23,7 @@ defmodule AII.NIFTest do
     end
 
     test "destroy_system fails for invalid reference" do
-      assert NIF.destroy_system(-1) == {:error, "system not found"}
+      assert_raise ArgumentError, fn -> NIF.destroy_system(-1) end
     end
   end
 
@@ -36,7 +36,14 @@ defmodule AII.NIFTest do
 
     test "add_particle stub returns ok", %{system_ref: ref} do
       # This is currently a stub
-      assert NIF.add_particle(ref, %{}) == :ok
+      particle = %{
+        position: %{x: 0.0, y: 0.0, z: 0.0},
+        velocity: %{x: 0.0, y: 0.0, z: 0.0},
+        mass: 1.0,
+        energy: 0.0,
+        id: 1
+      }
+      assert NIF.add_particle(ref, particle) == :ok
     end
 
     test "get_particles returns empty list initially", %{system_ref: ref} do

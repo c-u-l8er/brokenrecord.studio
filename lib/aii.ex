@@ -242,11 +242,15 @@ defmodule AII do
 
     # Add particles to the system
     Enum.each(particles, fn particle ->
+      energy_value = case particle.energy do
+        %AII.Types.Conserved{value: v} -> v
+        v when is_number(v) -> v
+      end
       particle_data = %{
-        position: particle.position,
-        velocity: particle.velocity,
+        position: %{x: elem(particle.position, 0), y: elem(particle.position, 1), z: elem(particle.position, 2)},
+        velocity: %{x: elem(particle.velocity, 0), y: elem(particle.velocity, 1), z: elem(particle.velocity, 2)},
         mass: particle.mass,
-        energy: particle.energy,
+        energy: energy_value,
         id: particle.particle_id || particle.id
       }
       AII.NIF.add_particle(system_ref, particle_data)
@@ -261,7 +265,15 @@ defmodule AII do
     end)
 
     # Get final particle state
-    final_particles = AII.NIF.get_particles(system_ref)
+    final_particles_raw = AII.NIF.get_particles(system_ref)
+
+    # Convert position/velocity from maps to tuples
+    final_particles = Enum.map(final_particles_raw, fn p ->
+      Map.merge(p, %{
+        position: {p.position.x, p.position.y, p.position.z},
+        velocity: {p.velocity.x, p.velocity.y, p.velocity.z}
+      })
+    end)
 
     # Clean up
     AII.NIF.destroy_system(system_ref)

@@ -631,7 +631,7 @@
                 "demo_applications.md",
                 "faq.md",
                 "PERFORMANCE.md",
-                "records_field_serivce_example.md",
+                "records_field_service_example.md",
                 "records_implementation_guide.md",
                 "social_media_graphics.md",
                 "technical_whitepaper.md",
@@ -682,7 +682,7 @@
                 for (const doc of docs) {
                     try {
                         console.log(`Loading document: ${doc}`);
-                        const response = await fetch(`docs/${doc}`);
+                        const response = await fetch(`docs/${doc}`, { cache: 'no-cache' });
                         if (response.ok) {
                             const content = await response.text();
                             allDocsContent[doc] = content;
