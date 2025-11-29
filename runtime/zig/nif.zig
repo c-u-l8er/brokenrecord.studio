@@ -192,6 +192,28 @@ pub fn get_particles(env: beam.env, argc: c_int, argv: [*c]const beam.term) beam
     return beam.make_list(env, &[_]beam.term{});
 }
 
+pub fn run_simulation_batch(env: beam.env, argc: c_int, argv: [*c]const beam.term) beam.term {
+    if (argc != 3) return beam.make_error_tuple(env, "expected 3 arguments");
+
+    const system_ref = beam.get_i64(env, argv[0]) catch return beam.make_error_tuple(env, "invalid system");
+    const steps = beam.get_i64(env, argv[1]) catch return beam.make_error_tuple(env, "invalid steps");
+    const dt = beam.get_f64(env, argv[2]) catch return beam.make_error_tuple(env, "invalid dt");
+
+    const system = systems.get(@intCast(system_ref)) orelse {
+        return beam.make_error_tuple(env, "system not found");
+    };
+
+    // Run simulation loop in batch
+    var step: usize = 0;
+    while (step < steps) : (step += 1) {
+        system.integrateEuler(@floatCast(dt)) catch {
+            return beam.make_error_tuple(env, "conservation violated");
+        };
+    }
+
+    return beam.make_atom(env, "ok");
+}
+
 pub fn destroy_system(env: beam.env, argc: c_int, argv: [*c]const beam.term) beam.term {
     if (argc != 1) return beam.make_error_tuple(env, "expected 1 argument");
 

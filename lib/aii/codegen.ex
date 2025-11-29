@@ -13,11 +13,18 @@ defmodule AII.Codegen do
   - CPU: Fallback CPU
   """
 
+  use Agent
+
   alias AII.HardwareDispatcher
 
   @type hardware :: HardwareDispatcher.hardware()
   @type interaction :: map()
   @type generated_code :: String.t()
+
+  # Start the cache agent
+  def start_link(_opts \\ []) do
+    Agent.start_link(fn -> %{} end, name: __MODULE__)
+  end
 
   @doc """
   Generates code for the given interaction on the specified hardware.
@@ -31,6 +38,33 @@ defmodule AII.Codegen do
   """
   @spec generate(interaction(), hardware()) :: generated_code()
   def generate(interaction, hardware) do
+    # Create cache key
+    cache_key = {interaction, hardware}
+
+    # Check cache first
+    case get_cached_code(cache_key) do
+      {:ok, code} -> code
+      :not_found ->
+        # Generate code
+        code = generate_uncached(interaction, hardware)
+        # Cache the result
+        cache_code(cache_key, code)
+        code
+    end
+  end
+
+  @doc """
+  Clear the code generation cache.
+  """
+  @spec clear_cache() :: :ok
+  def clear_cache do
+    Agent.update(__MODULE__, fn _ -> %{} end)
+  end
+
+  # Private functions
+
+  @spec generate_uncached(interaction(), hardware()) :: generated_code()
+  defp generate_uncached(interaction, hardware) do
     case hardware do
       :rt_cores -> generate_rt_cores(interaction)
       :tensor_cores -> generate_tensor_cores(interaction)
@@ -41,6 +75,27 @@ defmodule AII.Codegen do
       :simd -> generate_simd(interaction)
       :cpu -> generate_cpu(interaction)
       :auto -> generate_auto(interaction)
+    end
+  end
+
+  @spec get_cached_code(term()) :: {:ok, generated_code()} | :not_found
+  defp get_cached_code(cache_key) do
+    try do
+      case Agent.get(__MODULE__, &Map.get(&1, cache_key)) do
+        nil -> :not_found
+        code -> {:ok, code}
+      end
+    catch
+      :exit, _ -> :not_found  # Agent not started
+    end
+  end
+
+  @spec cache_code(term(), generated_code()) :: :ok
+  defp cache_code(cache_key, code) do
+    try do
+      Agent.update(__MODULE__, &Map.put(&1, cache_key, code))
+    catch
+      :exit, _ -> :ok  # Agent not started, skip caching
     end
   end
 

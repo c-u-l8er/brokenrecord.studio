@@ -304,8 +304,8 @@ defmodule Examples.AIIParticlePhysics do
         {:ok, %{
           steps: result.steps,
           dt: result.dt,
-          results: result.final_particles,
-          hardware: result.hardware,
+          results: result.results,
+          hardware_count: result.hardware_count,
           conservation_verified: result.conservation_verified
         }}
       error -> error

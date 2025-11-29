@@ -4,12 +4,19 @@ defmodule AII.ConservationChecker do
   Analyzes interaction AST to prove conservation through symbolic analysis.
   """
 
+  use Agent
+
   @type conservation_result :: :ok | {:needs_runtime_check, symbolic_expr(), symbolic_expr()}
   @type conserved_quantity :: atom()
   @type symbolic_expr :: {:sum, conserved_quantity} | {:var, atom()} | {:const, number()} |
                          {:add, symbolic_expr(), symbolic_expr()} |
                          {:sub, symbolic_expr(), symbolic_expr()} |
                          {:mul, symbolic_expr(), symbolic_expr()}
+
+  # Start the cache agent
+  def start_link(_opts \\ []) do
+    Agent.start_link(fn -> %{} end, name: __MODULE__)
+  end
 
   @doc """
   Verify conservation laws for an interaction against agent definitions.
@@ -19,6 +26,33 @@ defmodule AII.ConservationChecker do
   """
   @spec verify(map(), [map()]) :: conservation_result()
   def verify(interaction, agent_defs) do
+    # Create cache key from interaction and agent definitions
+    cache_key = {interaction, agent_defs}
+
+    # Check cache first
+    case get_cached_result(cache_key) do
+      {:ok, result} -> result
+      :not_found ->
+        # Compute result
+        result = verify_uncached(interaction, agent_defs)
+        # Cache the result
+        cache_result(cache_key, result)
+        result
+    end
+  end
+
+  @doc """
+  Clear the conservation verification cache.
+  """
+  @spec clear_cache() :: :ok
+  def clear_cache do
+    Agent.update(__MODULE__, fn _ -> %{} end)
+  end
+
+  # Private functions
+
+  @spec verify_uncached(map(), [map()]) :: conservation_result()
+  defp verify_uncached(interaction, agent_defs) do
     # Extract conserved quantities from agents
     conserved = extract_conserved_quantities(agent_defs)
 
@@ -31,6 +65,27 @@ defmodule AII.ConservationChecker do
           {:needs_runtime_check, before_expr, after_expr}
       end
     end)
+  end
+
+  @spec get_cached_result(term()) :: {:ok, conservation_result()} | :not_found
+  defp get_cached_result(cache_key) do
+    try do
+      case Agent.get(__MODULE__, &Map.get(&1, cache_key)) do
+        nil -> :not_found
+        result -> {:ok, result}
+      end
+    catch
+      :exit, _ -> :not_found  # Agent not started
+    end
+  end
+
+  @spec cache_result(term(), conservation_result()) :: :ok
+  defp cache_result(cache_key, result) do
+    try do
+      Agent.update(__MODULE__, &Map.put(&1, cache_key, result))
+    catch
+      :exit, _ -> :ok  # Agent not started, skip caching
+    end
   end
 
   @doc """

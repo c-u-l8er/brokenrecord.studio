@@ -83,24 +83,27 @@ defmodule AII.CodegenTest do
       interaction = %{body: {:nearby, [], []}}
       code = Codegen.generate_auto(interaction)
 
-      # Since RT cores not available, falls back to GPU
-      assert String.contains?(code, "Generic GPU")
+      # Dispatches to RT cores (available on this system)
+      assert String.contains?(code, "Vulkan Ray Tracing")
+      assert String.contains?(code, "RT Cores")
     end
 
     test "auto-generates for matrix operations" do
       interaction = %{body: {:matrix_multiply, [], []}}
       code = Codegen.generate_auto(interaction)
 
-      # Since tensor cores not available, falls back to GPU
-      assert String.contains?(code, "Generic GPU")
+      # Dispatches to tensor cores (available on this system)
+      assert String.contains?(code, "Vulkan Tensor Cores")
+      assert String.contains?(code, "cooperative_matrix")
     end
 
     test "auto-generates for neural operations" do
       interaction = %{body: {:predict, [], []}}
       code = Codegen.generate_auto(interaction)
 
-      # Since NPU not available, falls back to GPU
-      assert String.contains?(code, "Generic GPU")
+      # NPU not available, falls back to RT cores (first in chain after NPU)
+      assert String.contains?(code, "Vulkan Ray Tracing")
+      assert String.contains?(code, "RT Cores")
     end
 
     test "falls back to CPU for unknown operations" do

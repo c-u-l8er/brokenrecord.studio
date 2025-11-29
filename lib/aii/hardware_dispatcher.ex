@@ -6,13 +6,11 @@ defmodule AII.HardwareDispatcher do
   Supports automatic dispatch with fallback chains for robust execution.
   """
 
+  alias AII.HardwareDetection
+
   @type hardware :: :auto | :rt_cores | :tensor_cores | :npu | :cuda_cores | :gpu | :cpu | :parallel | :simd
   @type fallback_chain :: [hardware()]
   @type dispatch_result :: {:ok, hardware()} | {:error, term()}
-
-  # Hardware capability detection
-  # Hardware capability detection - will be replaced with actual detection
-  @hw_types [:cpu, :parallel, :simd, :gpu, :cuda_cores, :rt_cores, :tensor_cores, :npu]
 
   @doc """
   Dispatches an interaction to the optimal hardware accelerator.
@@ -29,16 +27,27 @@ defmodule AII.HardwareDispatcher do
   def dispatch(interaction, fallback \\ :auto)
 
   def dispatch(interaction, :auto) do
-    # Analyze interaction to find optimal hardware
-    optimal = analyze_interaction(interaction)
+    # Check if interaction has explicit accelerator hint
+    case Map.get(interaction, :accelerator, :auto) do
+      :auto ->
+        # Analyze interaction to find optimal hardware
+        optimal = analyze_interaction(interaction)
 
-    # Check if optimal hardware is available
-    if has_hardware?(optimal) do
-      {:ok, optimal}
-    else
-      # Fall back to available hardware in priority order
-      fallback_chain = [:rt_cores, :tensor_cores, :npu, :cuda_cores, :gpu, :parallel, :simd, :cpu]
-      chain_dispatch(interaction, fallback_chain)
+        # Check if optimal hardware is available
+        if has_hardware?(optimal) do
+          {:ok, optimal}
+        else
+          # Fall back to available hardware in priority order
+          fallback_chain = [:rt_cores, :tensor_cores, :npu, :cuda_cores, :gpu, :parallel, :simd, :cpu]
+          chain_dispatch(interaction, fallback_chain)
+        end
+      explicit_hw ->
+        # Use explicit accelerator hint
+        if has_hardware?(explicit_hw) do
+          {:ok, explicit_hw}
+        else
+          {:error, "Requested hardware #{explicit_hw} not available"}
+        end
     end
   end
 
@@ -50,23 +59,35 @@ defmodule AII.HardwareDispatcher do
   Checks if specific hardware is available on this system.
   """
   @spec has_hardware?(hardware()) :: boolean()
-  def has_hardware?(:cpu), do: true
-  def has_hardware?(:parallel), do: System.schedulers_online() > 1
-  def has_hardware?(:simd), do: has_simd?()
-  def has_hardware?(:gpu), do: has_gpu?()
-  def has_hardware?(:cuda_cores), do: has_cuda?()
-  def has_hardware?(:rt_cores), do: has_rt_cores?()
-  def has_hardware?(:tensor_cores), do: has_tensor_cores?()
-  def has_hardware?(:npu), do: has_npu?()
-  def has_hardware?(_), do: false
+  def has_hardware?(hw) do
+    case hw do
+      :cpu -> true
+      :parallel -> HardwareDetection.detect().core_count > 1
+      :simd -> HardwareDetection.detect().simd_avx2 or HardwareDetection.detect().simd_avx512 or HardwareDetection.detect().simd_neon
+      :gpu -> HardwareDetection.detect().gpu_count > 0
+      :cuda_cores -> HardwareDetection.detect().cuda
+      :rt_cores -> HardwareDetection.detect().rt_cores
+      :tensor_cores -> HardwareDetection.detect().tensor_cores
+      :npu -> HardwareDetection.detect().npu
+      _ -> false
+    end
+  end
 
   @doc """
   Gets all available hardware on this system.
   """
   @spec available_hardware() :: [hardware()]
   def available_hardware do
-    @hw_types
-    |> Enum.filter(&has_hardware?/1)
+    caps = HardwareDetection.detect()
+
+    [:cpu] ++
+    (if caps.core_count > 1, do: [:parallel], else: []) ++
+    (if caps.simd_avx2 or caps.simd_avx512 or caps.simd_neon, do: [:simd], else: []) ++
+    (if caps.gpu_count > 0, do: [:gpu], else: []) ++
+    (if caps.cuda, do: [:cuda_cores], else: []) ++
+    (if caps.rt_cores, do: [:rt_cores], else: []) ++
+    (if caps.tensor_cores, do: [:tensor_cores], else: []) ++
+    (if caps.npu, do: [:npu], else: [])
   end
 
   @doc """
@@ -85,12 +106,16 @@ defmodule AII.HardwareDispatcher do
   @spec analyze_interaction(map()) :: hardware()
   def analyze_interaction(interaction) do
     cond do
+      # Hardware priority order: RT cores > Tensor cores > NPU > GPU > CUDA > SIMD > CPU
+      has_collision_detection?(interaction) -> :rt_cores
       has_spatial_query?(interaction) -> :rt_cores
       has_matrix_operation?(interaction) -> :tensor_cores
       has_learned_model?(interaction) -> :npu
-      has_multi_core_cpu?(interaction) -> :parallel
-      has_parallel_compute?(interaction) -> :cuda_cores
       has_general_gpu?(interaction) -> :gpu
+      has_parallel_compute?(interaction) -> :cuda_cores
+      has_multi_core_cpu?(interaction) -> :parallel
+      # SIMD for vectorizable physics operations
+      is_vectorizable_physics?(interaction) -> :simd
       has_vector_ops?(interaction) -> :simd
       true -> :cpu
     end
@@ -108,51 +133,14 @@ defmodule AII.HardwareDispatcher do
     end
   end
 
-  # Hardware detection functions
 
-  defp has_simd? do
-    # Check for AVX, AVX2, AVX-512, NEON, etc.
-    # For now, assume x86_64 has SIMD
-    arch = :erlang.system_info(:system_architecture) |> List.to_string()
-    String.starts_with?(arch, "x86_64") or String.starts_with?(arch, "aarch64")
-  end
-
-  defp has_gpu? do
-    # Check for any GPU
-    # This would need platform-specific detection
-    # For now, stub as available on most systems
-    true
-  end
-
-  defp has_cuda? do
-    # Check for NVIDIA GPU with CUDA
-    # Would need to query GPU capabilities
-    false  # Stub - implement proper detection
-  end
-
-  defp has_rt_cores? do
-    # Check for RT cores (NVIDIA RTX series)
-    false  # Stub - implement proper detection
-  end
-
-  defp has_tensor_cores? do
-    # Check for tensor cores (NVIDIA Volta+)
-    false  # Stub - implement proper detection
-  end
-
-  defp has_npu? do
-    # Check for Neural Processing Unit
-    # Apple Neural Engine, Qualcomm Hexagon, etc.
-    case :os.type() do
-      {:unix, :darwin} -> true  # Assume Apple Silicon has ANE
-      _ -> false
-    end
-  end
 
   # AST analysis functions
 
   @spatial_keywords [:nearby, :colliding?, :within_radius, :find_neighbors,
                      :spatial_query, :ray_cast, :collision, :bvh, :octree]
+
+  @collision_keywords [:collision, :colliding?, :collide, :intersect, :overlap, :hit_test]
 
   @matrix_keywords [:matrix_multiply, :dot_product, :matmul, :outer_product,
                     :linear_transform, :tensor_op, :gemm, :blas]
@@ -160,13 +148,16 @@ defmodule AII.HardwareDispatcher do
   @neural_keywords [:predict, :infer, :neural_network, :forward_pass,
                    :model_eval, :embedding, :attention, :transformer]
 
-  @parallel_keywords [:reduce, :scan, :flow, :task_async]
+  @parallel_keywords [:reduce, :scan, :flow]
 
   @gpu_keywords [:gpu_compute, :shader, :compute_shader, :kernel]
 
   @cpu_parallel_keywords [:flow_map, :task_async, :parallel_stream, :concurrent, :parallel_map]
 
   @simd_keywords [:vector_add, :vector_mul, :simd_map, :vectorized, :avx]
+
+  # Physics operations that can be vectorized with SIMD
+  @vectorizable_keywords [:position, :velocity, :integrate, :update, :force, :acceleration, :momentum]
 
   defp has_spatial_query?(interaction) do
     ast_contains?(interaction, @spatial_keywords)
@@ -194,6 +185,24 @@ defmodule AII.HardwareDispatcher do
 
   defp has_vector_ops?(interaction) do
     ast_contains?(interaction, @simd_keywords)
+  end
+
+  # Check if interaction contains vectorizable physics operations
+  defp is_vectorizable_physics?(interaction) do
+    ast_contains?(interaction, @vectorizable_keywords)
+  end
+
+  # Check if interaction contains collision detection operations
+  defp has_collision_detection?(interaction) do
+    # Check interaction name first (more reliable than AST search)
+    interaction.name in [:detect_collisions, :gravitational_collisions, :conserved_collisions] or
+    ast_contains?(interaction, @collision_keywords)
+  end
+
+  # Check if interaction is suitable for GPU compute
+  defp has_gpu_compute?(interaction) do
+    # GPU is good for parallel workloads and vector operations
+    has_parallel_compute?(interaction) or has_vector_ops?(interaction) or is_vectorizable_physics?(interaction)
   end
 
   # AST traversal to find keywords

@@ -3,6 +3,14 @@ defmodule Examples.AIIChemicalReactionsTest do
   alias Examples.AIIChemicalReactions
   import Examples.TestHelper
 
+  setup_all do
+    # Ensure DSL modules are loaded for testing
+    Code.require_file("lib/aii/types.ex", ".")
+    Code.require_file("lib/aii/dsl.ex", ".")
+    Code.require_file("lib/examples/aii_chemical_reactions.ex", ".")
+    :ok
+  end
+
   describe "create_reaction_system/1" do
     test "creates system with default number of molecules" do
       system = AIIChemicalReactions.create_reaction_system()
@@ -136,9 +144,12 @@ defmodule Examples.AIIChemicalReactionsTest do
 
   describe "DSL integration" do
     test "module has correct agents and interactions" do
-      # Check that the DSL compiled correctly
-      assert function_exported?(AIIChemicalReactions, :__agents__, 0)
-      assert function_exported?(AIIChemicalReactions, :__interactions__, 0)
+      # Ensure the module is loaded and compiled
+      assert function_exported?(AIIChemicalReactions, :__agents__, 0),
+        "Module not properly compiled with DSL. Check that lib/examples/ are included in compilation."
+
+      assert function_exported?(AIIChemicalReactions, :__interactions__, 0),
+        "Module not properly compiled with DSL. Check that lib/examples/ are included in compilation."
 
       agents = AIIChemicalReactions.__agents__()
       interactions = AIIChemicalReactions.__interactions__()
@@ -152,17 +163,17 @@ defmodule Examples.AIIChemicalReactionsTest do
       # Should have bonding, reaction, catalytic, and diffusion interactions
       assert length(interactions) >= 4
     end
+  end
 
-    test "conservation verification works" do
-      # Test that the DSL conservation checker works
-      interaction = %{body: {:chemical_bonding, [], []}, name: :chemical_bonding}
-      agents = AIIChemicalReactions.__agents__()
+  test "conservation verification works" do
+    # Test that the DSL conservation checker works
+    interaction = %{body: {:chemical_bonding, [], []}, name: :chemical_bonding}
+    agents = AIIChemicalReactions.__agents__()
 
-      result = AII.verify_conservation(interaction, agents)
+    result = AII.verify_conservation(interaction, agents)
 
-      # Should not crash and return some result
-      assert result == :ok or match?({:needs_runtime_check, _, _}, result)
-    end
+    # Should not crash and return some result
+    assert result == :ok or match?({:needs_runtime_check, _, _}, result)
   end
 
   describe "performance" do

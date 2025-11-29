@@ -3,6 +3,14 @@ defmodule Examples.AIIConservationVerificationTest do
   alias Examples.AIIConservationVerification
   import Examples.TestHelper
 
+  setup_all do
+    # Ensure DSL modules are loaded for testing
+    Code.require_file("lib/aii/types.ex", ".")
+    Code.require_file("lib/aii/dsl.ex", ".")
+    Code.require_file("lib/examples/aii_conservation_verification.ex", ".")
+    :ok
+  end
+
   describe "create_verification_system/1" do
     test "creates system with default number of particles" do
       system = AIIConservationVerification.create_verification_system()
@@ -154,9 +162,12 @@ defmodule Examples.AIIConservationVerificationTest do
 
   describe "DSL integration" do
     test "module has correct agents and interactions" do
-      # Check that the DSL compiled correctly
-      assert function_exported?(AIIConservationVerification, :__agents__, 0)
-      assert function_exported?(AIIConservationVerification, :__interactions__, 0)
+      # Ensure the module is loaded and compiled
+      assert function_exported?(AIIConservationVerification, :__agents__, 0),
+        "Module not properly compiled with DSL. Check that lib/examples/ are included in compilation."
+
+      assert function_exported?(AIIConservationVerification, :__interactions__, 0),
+        "Module not properly compiled with DSL. Check that lib/examples/ are included in compilation."
 
       agents = AIIConservationVerification.__agents__()
       interactions = AIIConservationVerification.__interactions__()
@@ -164,11 +175,11 @@ defmodule Examples.AIIConservationVerificationTest do
       assert is_list(agents)
       assert is_list(interactions)
 
-      # Should have Particle agent
-      assert length(agents) >= 0
+      # Should have at least Particle agent
+      assert length(agents) >= 1
 
-      # Should have collision and integration interactions
-      assert length(interactions) >= 0
+      # Should have collision and conservation interactions
+      assert length(interactions) >= 2
     end
 
     test "conservation verification works" do
