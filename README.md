@@ -106,9 +106,6 @@ mix test             # Runs 184 comprehensive tests
 # Run specific test suite
 mix test test/aii/
 
-# Run examples
-mix run examples/my_physics.ex
-
 # Build NIF manually
 cd runtime/zig && zig build
 ```

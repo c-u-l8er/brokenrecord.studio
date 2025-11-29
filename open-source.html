@@ -624,8 +624,7 @@
             'lib/aii/hardware_dispatcher.ex',
             'lib/aii/nif.ex',
             'lib/aii/runtime.ex',
-            'lib/aii/types.ex',
-            'lib/my_physics.ex'
+            'lib/aii/types.ex'
         ];
 
         let zigFiles = [
@@ -677,11 +676,6 @@
             'lib/aii/types.ex': {
                 title: 'Type System',
                 description: 'Core types with conservation guarantees for energy, momentum, and vector math.',
-                language: 'elixir'
-            },
-            'lib/my_physics.ex': {
-                title: 'Example Physics System',
-                description: 'Example implementation demonstrating the AII DSL for particle physics.',
                 language: 'elixir'
             },
             'lib/aii/.Elixir.AII.NIF.zig': {
@@ -738,7 +732,7 @@
             for (const file of elixirFiles) {
                 try {
                     console.log(`Loading file: ${file}`);
-                    const response = await fetch(file);
+                    const response = await fetch(file, { cache: 'no-cache' });
                     if (response.ok) {
                         const content = await response.text();
                         allFilesContent[file] = content;

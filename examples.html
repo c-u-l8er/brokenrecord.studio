@@ -743,7 +743,7 @@
                 for (const example of examples) {
                     try {
                         console.log(`Loading example: ${example}`);
-                        const response = await fetch(`lib/examples/${example}`);
+                        const response = await fetch(`lib/examples/${example}`, { cache: 'no-cache' });
                         if (response.ok) {
                             const content = await response.text();
                             allExamplesContent[example] = content;
