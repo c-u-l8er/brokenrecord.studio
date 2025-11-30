@@ -1,4 +1,7 @@
 const std = @import("std");
+const vk = @cImport({
+    @cInclude("vulkan/vulkan.h");
+});
 const Allocator = std.mem.Allocator;
 const gpu_backend = @import("gpu_backend.zig");
 
@@ -294,19 +297,177 @@ pub const RTCores = struct {
         index_buffer: gpu_backend.BufferHandle,
         primitive_count: u32
     ) !void {
-        // This would use Vulkan RT extension to build BLAS/TLAS
-        // For now, create placeholder buffers
+        // Build Bottom Level Acceleration Structure (BLAS) using Vulkan RT
 
-        // Calculate AS size (simplified)
-        const as_size = primitive_count * 64; // Rough estimate
+        // Get Vulkan device handles from backend
+        const vk_device = @as(vk.VkDevice, @ptrFromInt(self.backend.device.vulkan.device));
+        const vk_cmd_pool = @as(vk.VkCommandPool, @ptrFromInt(self.backend.command_pool.vulkan));
 
-        self.acceleration_structure = try self.backend.createBuffer(as_size, .storage);
-        self.scratch_buffer = try self.backend.createBuffer(as_size, .storage);
+        // Get vertex and index buffer Vulkan handles
+        const vertex_vk_buffer = @as(vk.VkBuffer, @ptrFromInt(vertex_buffer.vulkan));
+        const index_vk_buffer = @as(vk.VkBuffer, @ptrFromInt(index_buffer.vulkan));
 
-        // In real implementation:
-        // - Create VkAccelerationStructureKHR
-        // - Build with vkCmdBuildAccelerationStructuresKHR
-        // - Use vertex and index buffers as geometry
+        // Define geometry for BLAS
+        const triangles = vk.VkAccelerationStructureGeometryTrianglesDataKHR{
+            .sType = vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+            .vertexFormat = vk.VK_FORMAT_R32G32B32_SFLOAT,
+            .vertexData = .{
+                .deviceAddress = 0, // Will be set with vkGetBufferDeviceAddress
+            },
+            .vertexStride = 12, // 3 floats * 4 bytes
+            .maxVertex = primitive_count * 3 - 1,
+            .indexType = vk.VK_INDEX_TYPE_UINT32,
+            .indexData = .{
+                .deviceAddress = 0, // Will be set
+            },
+            .transformData = .{
+                .deviceAddress = 0,
+            },
+        };
+
+        const geometry = vk.VkAccelerationStructureGeometryKHR{
+            .sType = vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .geometryType = vk.VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+            .flags = vk.VK_GEOMETRY_OPAQUE_BIT_KHR,
+            .geometry = .{
+                .triangles = triangles,
+            },
+        };
+
+        const build_range_info = vk.VkAccelerationStructureBuildRangeInfoKHR{
+            .primitiveCount = primitive_count,
+            .primitiveOffset = 0,
+            .firstVertex = 0,
+            .transformOffset = 0,
+        };
+
+        // Get build sizes
+        var build_info = vk.VkAccelerationStructureBuildGeometryInfoKHR{
+            .sType = vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+            .type = vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+            .flags = vk.VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+            .mode = vk.VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+            .geometryCount = 1,
+            .pGeometries = &geometry,
+        };
+
+        var build_sizes = vk.VkAccelerationStructureBuildSizesInfoKHR{
+            .sType = vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+        };
+
+        vk.vkGetAccelerationStructureBuildSizesKHR(
+            vk_device,
+            vk.VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &build_info,
+            &build_range_info.primitiveCount,
+            &build_sizes
+        );
+
+        // Create BLAS buffer
+        self.acceleration_structure = try self.backend.createBuffer(build_sizes.accelerationStructureSize, .storage);
+
+        // Create scratch buffer
+        self.scratch_buffer = try self.backend.createBuffer(build_sizes.buildScratchSize, .storage);
+
+        // Get device addresses
+        const blas_vk_buffer = @as(vk.VkBuffer, @ptrFromInt(self.acceleration_structure.?.vulkan));
+        const scratch_vk_buffer = @as(vk.VkBuffer, @ptrFromInt(self.scratch_buffer.?.vulkan));
+
+        const vertex_address_info = vk.VkBufferDeviceAddressInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = vertex_vk_buffer,
+        };
+        const vertex_address = vk.vkGetBufferDeviceAddress(vk_device, &vertex_address_info);
+
+        const index_address_info = vk.VkBufferDeviceAddressInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = index_vk_buffer,
+        };
+        const index_address = vk.vkGetBufferDeviceAddress(vk_device, &index_address_info);
+
+        const scratch_address_info = vk.VkBufferDeviceAddressInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = scratch_vk_buffer,
+        };
+        const scratch_address = vk.vkGetBufferDeviceAddress(vk_device, &scratch_address_info);
+
+        // Create acceleration structure
+        const as_create_info = vk.VkAccelerationStructureCreateInfoKHR{
+            .sType = vk.VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+            .buffer = blas_vk_buffer,
+            .offset = 0,
+            .size = build_sizes.accelerationStructureSize,
+            .type = vk.VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+        };
+
+        var acceleration_structure: vk.VkAccelerationStructureKHR = undefined;
+        _ = vk.vkCreateAccelerationStructureKHR(vk_device, &as_create_info, null, &acceleration_structure);
+
+        // Update build info with addresses
+        triangles.vertexData.deviceAddress = vertex_address;
+        triangles.indexData.deviceAddress = index_address;
+
+        build_info.dstAccelerationStructure = acceleration_structure;
+        build_info.scratchData.deviceAddress = scratch_address;
+
+        // Build the acceleration structure
+        const cmd_buffer_allocate_info = vk.VkCommandBufferAllocateInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = vk_cmd_pool,
+            .level = vk.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+
+        var cmd_buffer: vk.VkCommandBuffer = undefined;
+        _ = vk.vkAllocateCommandBuffers(vk_device, &cmd_buffer_allocate_info, &cmd_buffer);
+
+        const begin_info = vk.VkCommandBufferBeginInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = vk.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        _ = vk.vkBeginCommandBuffer(cmd_buffer, &begin_info);
+
+        const build_range_infos = [_]vk.VkAccelerationStructureBuildRangeInfoKHR{build_range_info};
+        vk.vkCmdBuildAccelerationStructuresKHR(cmd_buffer, 1, &build_info, &build_range_infos);
+
+        // Add memory barrier
+        const barrier = vk.VkMemoryBarrier{
+            .sType = vk.VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .srcAccessMask = vk.VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
+            .dstAccessMask = vk.VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+        };
+
+        vk.vkCmdPipelineBarrier(
+            cmd_buffer,
+            vk.VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+            vk.VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+            0,
+            1,
+            &barrier,
+            0,
+            null,
+            0,
+            null
+        );
+
+        _ = vk.vkEndCommandBuffer(cmd_buffer);
+
+        // Submit and wait
+        const submit_info = vk.VkSubmitInfo{
+            .sType = vk.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &cmd_buffer,
+        };
+
+        _ = vk.vkQueueSubmit(@as(vk.VkQueue, @ptrFromInt(self.backend.queue.vulkan)), 1, &submit_info, null);
+        _ = vk.vkQueueWaitIdle(@as(vk.VkQueue, @ptrFromInt(self.backend.queue.vulkan)));
+
+        // Free command buffer
+        vk.vkFreeCommandBuffers(vk_device, vk_cmd_pool, 1, &cmd_buffer);
+
+        // Store acceleration structure handle (simplified - in real implementation, store in BufferHandle)
+        // For now, we'll assume the buffer contains the AS
 
         self.bvh_build_info = BVHBuildInfo{
             .primitive_count = primitive_count,

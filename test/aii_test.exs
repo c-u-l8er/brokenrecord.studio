@@ -44,13 +44,14 @@ defmodule AIITest do
     end
 
     test "creates particle with custom values" do
-      particle = AII.create_particle(
-        mass: 2.5,
-        position: {1.0, 2.0, 3.0},
-        velocity: {0.1, 0.2, 0.3},
-        energy: 100.0,
-        momentum: {10.0, 20.0, 30.0}
-      )
+      particle =
+        AII.create_particle(
+          mass: 2.5,
+          position: {1.0, 2.0, 3.0},
+          velocity: {0.1, 0.2, 0.3},
+          energy: 100.0,
+          momentum: {10.0, 20.0, 30.0}
+        )
 
       assert particle.mass == 2.5
       assert particle.position == {1.0, 2.0, 3.0}
@@ -113,7 +114,7 @@ defmodule AIITest do
       # Create a mock system module
       defmodule MockSystem do
         def __agents__, do: [%{conserves: [:energy]}]
-        def __interactions__, do: [%{body: {:simple, [], []}}]
+        def __interactions__, do: [%{name: :simple, body: {:simple, [], []}}]
       end
 
       # Should return simulation results
@@ -128,38 +129,47 @@ defmodule AIITest do
     test "benchmarks a simulation" do
       defmodule BenchmarkSystem do
         def __agents__, do: [%{conserves: [:energy]}]
-        def __interactions__, do: [%{body: {:simple, [], []}}]
+        def __interactions__, do: [%{name: :simple, body: {:simple, [], []}}]
       end
 
       result = AII.benchmark(BenchmarkSystem, steps: 1, iterations: 1)
 
       assert is_map(result)
-      assert result.iterations == 1
-      assert result.steps == 1
-      assert is_number(result.avg_time_ms)
-      assert is_number(result.min_time_ms)
-      assert is_number(result.max_time_ms)
-      assert is_number(result.throughput)
+      # 1 iteration * 4 backends
+      assert result.summary.total_iterations == 4
+      assert result.summary.steps == 1
+      assert is_list(result.benchmarks)
+      assert length(result.benchmarks) == 4
+      # Check that each benchmark has the required fields
+      Enum.each(result.benchmarks, fn benchmark ->
+        assert is_number(benchmark.avg_time_ms)
+        assert is_number(benchmark.min_time_ms)
+        assert is_number(benchmark.max_time_ms)
+        assert is_number(benchmark.throughput)
+        assert benchmark.iterations == 1
+        assert benchmark.steps == 1
+      end)
     end
   end
 
   describe "dispatch_interaction/1" do
     test "dispatches simple interaction" do
-      interaction = %{body: {:nearby, [], []}}
+      interaction = %{name: :nearby, body: {:nearby, [], []}}
       result = AII.dispatch_interaction(interaction)
       assert {:ok, _hardware} = result
     end
 
     test "dispatches with fallback" do
-      interaction = %{body: {:unknown_op, [], []}}
+      interaction = %{name: :unknown_op, body: {:unknown_op, [], []}}
       result = AII.dispatch_interaction(interaction)
-      assert {:ok, :cpu} = result  # Should fall back to CPU
+      # Should fall back to CPU
+      assert {:ok, :cpu} = result
     end
   end
 
   describe "verify_conservation/2" do
     test "verifies conservation for simple case" do
-      interaction = %{body: {:simple, [], []}}
+      interaction = %{name: :simple, body: {:simple, [], []}}
       agents = [%{conserves: [:energy]}]
 
       result = AII.verify_conservation(interaction, agents)

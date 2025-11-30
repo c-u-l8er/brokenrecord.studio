@@ -43,7 +43,9 @@ defmodule AII.Codegen do
 
     # Check cache first
     case get_cached_code(cache_key) do
-      {:ok, code} -> code
+      {:ok, code} ->
+        code
+
       :not_found ->
         # Generate code
         code = generate_uncached(interaction, hardware)
@@ -67,7 +69,7 @@ defmodule AII.Codegen do
   defp generate_uncached(interaction, hardware) do
     case hardware do
       :rt_cores -> generate_rt_cores(interaction)
-      :tensor_cores -> generate_tensor_cores(interaction)
+      :tensor_cores -> generate_tensor_cores(interaction, hardware)
       :npu -> generate_npu(interaction)
       :cuda_cores -> generate_cuda_cores(interaction)
       :gpu -> generate_gpu(interaction)
@@ -86,7 +88,8 @@ defmodule AII.Codegen do
         code -> {:ok, code}
       end
     catch
-      :exit, _ -> :not_found  # Agent not started
+      # Agent not started
+      :exit, _ -> :not_found
     end
   end
 
@@ -95,7 +98,8 @@ defmodule AII.Codegen do
     try do
       Agent.update(__MODULE__, &Map.put(&1, cache_key, code))
     catch
-      :exit, _ -> :ok  # Agent not started, skip caching
+      # Agent not started, skip caching
+      :exit, _ -> :ok
     end
   end
 
@@ -141,38 +145,44 @@ defmodule AII.Codegen do
     """
   end
 
-  # Tensor Cores: Cooperative Matrix
-  defp generate_tensor_cores(interaction) do
-    """
-    // Vulkan Tensor Cores - Generated for #{inspect(interaction)}
+  # Tensor Cores: Cooperative Matrix or WMMA
+  defp generate_tensor_cores(interaction, hardware) do
+    case hardware do
+      :cuda_tensor_cores ->
+        generate_cuda_tensor_cores(interaction)
 
-    #version 450
-    #extension GL_KHR_cooperative_matrix : enable
+      _ ->
+        """
+        // Vulkan Tensor Cores - Generated for #{inspect(interaction)}
 
-    layout(local_size_x = 16, local_size_y = 16) in;
+        #version 450
+        #extension GL_KHR_cooperative_matrix : enable
 
-    // Cooperative matrix declarations
-    layout(binding = 0) buffer Matrices {
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> matrixA[];
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> matrixB[];
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> result[];
-    };
+        layout(local_size_x = 16, local_size_y = 16) in;
 
-    void main() {
-        uint idx = gl_GlobalInvocationID.x;
+        // Cooperative matrix declarations
+        layout(binding = 0) buffer Matrices {
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> matrixA[];
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> matrixB[];
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> result[];
+        };
 
-        // Load matrices
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> a = matrixA[idx];
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> b = matrixB[idx];
-        coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> r = result[idx];
+        void main() {
+            uint idx = gl_GlobalInvocationID.x;
 
-        // Tensor cores execute this multiply-accumulate
-        r = coopMatMulAdd(a, b, r);
+            // Load matrices
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseA> a = matrixA[idx];
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseB> b = matrixB[idx];
+            coopmat<float, gl_ScopeSubgroup, 16, 16, gl_MatrixUseAccumulator> r = result[idx];
 
-        // Store result
-        result[idx] = r;
-    }
-    """
+            // Tensor cores execute this multiply-accumulate
+            r = coopMatMulAdd(a, b, r);
+
+            // Store result
+            result[idx] = r;
+        }
+        """
+    end
   end
 
   # NPU: Neural Processing Unit
@@ -286,7 +296,69 @@ defmodule AII.Codegen do
     """
   end
 
-  # Generic GPU: Vendor-agnostic
+  # CUDA Tensor Cores: WMMA Operations
+  defp generate_cuda_tensor_cores(interaction) do
+    """
+    // CUDA Tensor Cores - Generated for #{inspect(interaction)}
+
+    #include <mma.h>
+    using namespace nvcuda::wmma;
+
+    __global__ void tensor_core_matmul(
+        half *a, half *b, float *c,
+        int m, int n, int k
+    ) {
+        // Declare fragments
+        fragment<matrix_a, 16, 16, 16, half, row_major> a_frag;
+        fragment<matrix_b, 16, 16, 16, half, col_major> b_frag;
+        fragment<accumulator, 16, 16, 16, float> c_frag;
+
+        // Calculate global warp indices
+        int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
+        int warpN = blockIdx.y * blockDim.y + threadIdx.y;
+
+        // Load matrices
+        load_matrix_sync(a_frag, a + warpM * 16 * k, k);
+        load_matrix_sync(b_frag, b + warpN * 16, k);
+        load_matrix_sync(c_frag, c + warpM * 16 * n + warpN * 16, n, mem_row_major);
+
+        // Perform matrix multiplication
+        mma_sync(c_frag, a_frag, b_frag, c_frag);
+
+        // Store result
+        store_matrix_sync(c + warpM * 16 * n + warpN * 16, c_frag, n, mem_row_major);
+    }
+
+    __global__ void tensor_core_force_calc(
+        float3 *positions, float *masses, float3 *forces,
+        int num_particles
+    ) {
+        // Tensor core optimized N-body force calculation
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (idx < num_particles) {
+            float3 pos_i = positions[idx];
+            float m_i = masses[idx];
+            float3 force = make_float3(0.0f, 0.0f, 0.0f);
+
+            // Use tensor cores for batched distance calculations
+            // Simplified version - in practice would use WMMA for matrix ops
+            for (int j = 0; j < num_particles; j++) {
+                if (idx != j) {
+                    float3 r = positions[j] - pos_i;
+                    float dist = sqrtf(r.x*r.x + r.y*r.y + r.z*r.z + 1e-10f);
+                    float f = 6.67430e-11f * m_i * masses[j] / (dist * dist * dist);
+                    force += f * r;
+                }
+            }
+
+            forces[idx] = force;
+        }
+    }
+    """
+  end
+
+  # GPU: General GPU Compute
   defp generate_gpu(interaction) do
     """
     // Generic GPU Compute Shader - Generated for #{inspect(interaction)}

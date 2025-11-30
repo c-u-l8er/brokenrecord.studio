@@ -83,18 +83,6 @@ defmodule AII do
   def conservation, do: AII.ConservationChecker
   def nif, do: AII.NIF
 
-  @doc """
-  Defines an agent using the AII DSL.
-
-  ## Example
-
-      AII.define_agent Particle do
-        property :mass, Float, invariant: true
-        state :position, AII.Types.Vec3
-        conserves :energy
-      end
-
-  """
   # Note: define_agent and define_interaction are macros, not functions
   # Use AII.DSL.defagent and AII.DSL.definteraction directly
 
@@ -113,52 +101,25 @@ defmodule AII do
   end
 
   @doc """
-  Generates code for the specified hardware accelerator.
+  Run simulation with specific hardware backend.
 
   ## Parameters
-  - `interaction`: The interaction AST
-  - `hw`: The hardware type (:cuda_cores, etc.)
+  - `system_module`: Module containing particle system definition
+  - `opts`: Options including :steps, :dt, :particles, :hardware
 
   ## Returns
-  - String containing the generated code
+  - Simulation result map
   """
-  def generate_code(interaction, hw) do
-    case hw do
-      :cuda_cores ->
-        """
-        struct Particle {
-          float position[3];
-          float velocity[3];
-          float mass;
-          float energy;
-          int id;
-        };
-        __global__ void integrate_particles_cuda(Particle* particles, int num_particles, float dt) {
-          int idx = blockIdx.x * blockDim.x + threadIdx.x;
-          if (idx >= num_particles) return;
-          Particle* p = &particles[idx];
-          p->position[0] += p->velocity[0] * dt;
-          p->position[1] += p->velocity[1] * dt;
-          p->position[2] += p->velocity[2] * dt;
-          float v_squared = p->velocity[0]*p->velocity[0] + p->velocity[1]*p->velocity[1] + p->velocity[2]*p->velocity[2];
-          p->energy = 0.5f * p->mass * v_squared;
-        }
-        """
-      _ -> "not implemented"
-    end
+  def run_simulation(system_module, opts \\ []) do
+    hardware = Keyword.get(opts, :hardware, :auto)
+    run_simulation_with_hardware(system_module, opts, hardware)
   end
 
-  @doc """
-  Verifies conservation laws for an interaction.
-
-  Returns `:ok`, `{:needs_runtime_check, before, after}`, or `{:error, message}`.
-
-  ## Example
-
-      :ok = AII.verify_conservation(interaction, agent_definitions)
-
-  """
-  defdelegate verify_conservation(interaction, agents), to: AII.ConservationChecker, as: :verify
+  defp run_simulation_with_hardware(system_module, opts, _hardware) do
+    # For now, delegate to original implementation
+    # TODO: Implement hardware-specific dispatch
+    run_simulation_original(system_module, opts)
+  end
 
   @doc """
   Generates optimized code for an interaction on specific hardware.
@@ -211,26 +172,19 @@ defmodule AII do
   defdelegate efficiency_hint(hardware), to: AII.HardwareDispatcher
 
   @doc """
-  Runs a simulation using the specified system module.
+  Verifies conservation laws for an interaction.
 
-  ## Parameters
-  - `system_module`: Module containing agent and interaction definitions
-  - `options`: Simulation options
-    - `:steps` - Number of simulation steps (default: 1000)
-    - `:dt` - Time step size (default: 0.016)
-    - `:particles` - Initial particle data
-    - `:hardware` - Force specific hardware (default: :auto)
-
-  ## Returns
-  - `{:ok, results}` on success
-  - `{:error, reason}` on failure
+  Returns `:ok`, `{:needs_runtime_check, before, after}`, or `{:error, message}`.
 
   ## Example
 
-      {:ok, final_state} = AII.run_simulation(MyPhysics, steps: 1000, dt: 0.01)
+      :ok = AII.verify_conservation(interaction, agent_definitions)
 
   """
-  def run_simulation(system_module, opts \\ []) do
+  defdelegate verify_conservation(interaction, agents), to: AII.ConservationChecker, as: :verify
+
+  # Original simulation implementation
+  defp run_simulation_original(system_module, opts) do
     steps = Keyword.get(opts, :steps, 100)
     dt = Keyword.get(opts, :dt, 0.01)
     particles = Keyword.get(opts, :particles, [])
@@ -254,63 +208,84 @@ defmodule AII do
     # Check cache for hardware assignments and generated code
     cached_result = get_cached_simulation_data(cache_key)
 
-    {agents, interactions, hardware_assignments, generated_code} = case cached_result do
-      {:ok, data} ->
-        data
-      :not_found ->
-        Logger.log(:debug, "Cache miss for system #{inspect(system_module)} - computing conservation checks and hardware dispatch")
-        # Compute expensive operations
-        agents = system_module.__agents__()
-        interactions = system_module.__interactions__()
+    {_agents, _interactions, hardware_assignments, generated_code} =
+      case cached_result do
+        {:ok, data} ->
+          data
 
-        # Verify conservation for all interactions
-        conservation_results = Enum.map(interactions, fn interaction ->
-          AII.verify_conservation(interaction, agents)
-        end)
+        :not_found ->
+          Logger.log(
+            :debug,
+            "Cache miss for system #{inspect(system_module)} - computing conservation checks and hardware dispatch"
+          )
 
-        # Check if any conservation violations
-        violations = Enum.filter(conservation_results, fn
-          {:error, _} -> true
-          _ -> false
-        end)
+          # Compute expensive operations
+          agents = system_module.__agents__()
+          interactions = system_module.__interactions__()
 
-        if violations != [] do
-          {:error, "Conservation violations detected: #{inspect(violations)}"}
-        end
+          # Verify conservation for all interactions
+          conservation_results =
+            Enum.map(interactions, fn interaction ->
+              AII.verify_conservation(interaction, agents)
+            end)
 
-        # Dispatch interactions to hardware
-        hardware_assignments = Enum.map(interactions, fn interaction ->
-          case AII.dispatch_interaction(interaction) do
-            {:ok, hw} -> {interaction, hw}
-            {:error, _} -> {interaction, :cpu}  # Fallback
+          # Check if any conservation violations
+          violations =
+            Enum.filter(conservation_results, fn
+              {:error, _} -> true
+              _ -> false
+            end)
+
+          if violations != [] do
+            {:error, "Conservation violations detected: #{inspect(violations)}"}
           end
-        end)
 
-        # Generate code for each interaction
-        generated_code = Enum.map(hardware_assignments, fn {interaction, hw} ->
-          {interaction, hw, AII.generate_code(interaction, hw)}
-        end)
+          # Dispatch interactions to hardware
+          hardware_assignments =
+            Enum.map(interactions, fn interaction ->
+              case AII.dispatch_interaction(interaction) do
+                {:ok, hw} -> {interaction, hw}
+                # Fallback
+                {:error, _} -> {interaction, :cpu}
+              end
+            end)
 
-        # Log hardware dispatch summary (once per unique system, not per benchmark iteration)
-        accelerated_count = length(Enum.filter(hardware_assignments, fn {_, hw} -> hw != :cpu end))
-        Logger.log(:debug, "Hardware dispatch complete: #{length(hardware_assignments)} total interactions, #{accelerated_count} accelerated (#{length(hardware_assignments) - accelerated_count} on CPU)")
+          # Generate code for each interaction
+          generated_code =
+            Enum.map(hardware_assignments, fn {interaction, hw} ->
+              {interaction, hw, AII.generate_code(interaction, hw)}
+            end)
 
-        # Cache the results
-        cache_simulation_data(cache_key, {agents, interactions, hardware_assignments, generated_code})
+          # Log hardware dispatch summary (once per unique system, not per benchmark iteration)
+          accelerated_count =
+            length(Enum.filter(hardware_assignments, fn {_, hw} -> hw != :cpu end))
 
-        {agents, interactions, hardware_assignments, generated_code}
-    end
+          Logger.log(
+            :debug,
+            "Hardware dispatch complete: #{length(hardware_assignments)} total interactions, #{accelerated_count} accelerated (#{length(hardware_assignments) - accelerated_count} on CPU)"
+          )
+
+          # Cache the results
+          cache_simulation_data(
+            cache_key,
+            {agents, interactions, hardware_assignments, generated_code}
+          )
+
+          {agents, interactions, hardware_assignments, generated_code}
+      end
 
     # Initialize particle system
-    capacity = length(particles) + 10  # Extra capacity
+    # Extra capacity
+    capacity = length(particles) + 10
     system_ref = AII.NIF.create_particle_system(capacity)
 
     # Add particles to the system
     Enum.each(particles, fn particle ->
-      energy_value = case particle.energy do
-        %AII.Types.Conserved{value: v} -> v
-        v when is_number(v) -> v
-      end
+      energy_value =
+        case particle.energy do
+          %AII.Types.Conserved{value: v} -> v
+          v when is_number(v) -> v
+        end
 
       # Handle both tuple {x,y,z} and map %{x: x, y: y, z: z} formats
       position = extract_vec3(particle.position)
@@ -323,11 +298,18 @@ defmodule AII do
         energy: energy_value,
         id: particle[:particle_id] || particle[:id]
       }
+
       AII.NIF.add_particle(system_ref, particle_data)
     end)
 
     # Run simulation with hardware acceleration based on selected hardware
-    case AII.NIF.run_simulation_with_hardware(system_ref, steps, dt, hardware_assignments, generated_code) do
+    case AII.NIF.run_simulation_with_hardware(
+           system_ref,
+           steps,
+           dt,
+           hardware_assignments,
+           generated_code
+         ) do
       :ok -> :ok
       {:error, reason} -> raise "Conservation violation: #{reason}"
     end
@@ -336,24 +318,27 @@ defmodule AII do
     final_particles_raw = AII.NIF.get_particles(system_ref)
 
     # Convert position/velocity from maps to tuples
-    final_particles = Enum.map(final_particles_raw, fn p ->
-      Map.merge(p, %{
-        position: {p.position.x, p.position.y, p.position.z},
-        velocity: {p.velocity.x, p.velocity.y, p.velocity.z}
-      })
-    end)
+    final_particles =
+      Enum.map(final_particles_raw, fn p ->
+        Map.merge(p, %{
+          position: {p.position.x, p.position.y, p.position.z},
+          velocity: {p.velocity.x, p.velocity.y, p.velocity.z}
+        })
+      end)
 
     # Clean up
     AII.NIF.destroy_system(system_ref)
 
     # Simplified result to isolate bottleneck
-    {:ok, %{
-      steps: steps,
-      dt: dt,
-      results: final_particles,
-      hardware_count: length(hardware_assignments),  # Simplified - just count instead of full AST
-      conservation_verified: true
-    }}
+    {:ok,
+     %{
+       steps: steps,
+       dt: dt,
+       results: final_particles,
+       # Simplified - just count instead of full AST
+       hardware_count: length(hardware_assignments),
+       conservation_verified: true
+     }}
   end
 
   @doc """
@@ -383,45 +368,37 @@ defmodule AII do
     case Process.whereis(AII.ConservationChecker) do
       nil ->
         {:ok, _} = AII.ConservationChecker.start_link()
-      _ -> :ok
+
+      _ ->
+        :ok
     end
 
     # Start codegen cache
     case Process.whereis(AII.Codegen) do
       nil ->
         {:ok, _} = AII.Codegen.start_link()
-      _ -> :ok
+
+      _ ->
+        :ok
     end
 
     # Start simulation data cache
     case Process.whereis(@simulation_cache_agent) do
       nil ->
         {:ok, _} = Agent.start_link(fn -> %{} end, name: @simulation_cache_agent)
-      _ -> :ok
+
+      _ ->
+        :ok
     end
   end
 
   @doc """
-  Clear all caches (conservation checker, code generation, and simulation data).
-  """
-  def clear_caches do
-    AII.ConservationChecker.clear_cache()
-    AII.Codegen.clear_cache()
-    # Clear simulation data cache
-    try do
-      Agent.update(@simulation_cache_agent, fn _ -> %{} end)
-    catch
-      :exit, _ -> :ok  # Agent not started
-    end
-  end
-
-  @doc """
-  Gets system information and capabilities.
+  Returns system information including version and available hardware.
 
   ## Example
 
-      info = AII.system_info()
-      # %{hardware: [:cpu, :gpu], version: "0.1.0", ...}
+    info = AII.system_info()
+    # %{hardware: [:cpu, :gpu], version: "0.1.0", ...}
 
   """
   def system_info do
@@ -460,31 +437,68 @@ defmodule AII do
 
   ## Example
 
-      results = AII.benchmark(MyPhysics, steps: 100, iterations: 5)
+    results = AII.benchmark(MyPhysics, steps: 100, iterations: 5)
 
   """
   def benchmark(system_module, options \\ []) do
     steps = Keyword.get(options, :steps, 100)
     iterations = Keyword.get(options, :iterations, 3)
+    hardware_backends = Keyword.get(options, :backends, [:cpu, :gpu, :cuda, :rt_cores])
 
-    times = Enum.map(1..iterations, fn _ ->
-      {time, _} = :timer.tc(fn ->
-        AII.run_simulation(system_module, steps: steps)
+    # Benchmark each backend
+    results =
+      Enum.map(hardware_backends, fn backend ->
+        backend_times =
+          Enum.map(1..iterations, fn _ ->
+            {time, _} =
+              :timer.tc(fn ->
+                AII.run_simulation(system_module, steps: steps, hardware: backend)
+              end)
+
+            # Convert to milliseconds
+            time / 1000
+          end)
+
+        avg_time = Enum.sum(backend_times) / length(backend_times)
+        min_time = Enum.min(backend_times)
+        max_time = Enum.max(backend_times)
+
+        %{
+          backend: backend,
+          iterations: iterations,
+          steps: steps,
+          avg_time_ms: avg_time,
+          min_time_ms: min_time,
+          max_time_ms: max_time,
+          # steps per second
+          throughput: steps / (avg_time / 1000),
+          # Will be calculated relative to CPU
+          speedup: nil
+        }
       end)
-      time / 1000  # Convert to milliseconds
-    end)
 
-    avg_time = Enum.sum(times) / length(times)
-    min_time = Enum.min(times)
-    max_time = Enum.max(times)
+    # Calculate speedups relative to CPU
+    cpu_result = Enum.find(results, fn r -> r.backend == :cpu end)
+
+    if cpu_result do
+      cpu_throughput = cpu_result.throughput
+
+      updated_results =
+        Enum.map(results, fn result ->
+          Map.put(result, :speedup, result.throughput / cpu_throughput)
+        end)
+
+      results = updated_results
+    end
 
     %{
-      iterations: iterations,
-      steps: steps,
-      avg_time_ms: avg_time,
-      min_time_ms: min_time,
-      max_time_ms: max_time,
-      throughput: steps / (avg_time / 1000)  # steps per second
+      benchmarks: results,
+      summary: %{
+        fastest_backend: Enum.min_by(results, fn r -> r.avg_time_ms end).backend,
+        slowest_backend: Enum.max_by(results, fn r -> r.avg_time_ms end).backend,
+        total_iterations: iterations * length(hardware_backends),
+        steps: steps
+      }
     }
   end
 
@@ -504,7 +518,7 @@ defmodule AII do
   Uses RT cores on RTX GPUs for accelerated collision detection when available.
   Falls back to CPU-based detection otherwise.
   """
-  def detect_collisions(system_module, particles, collision_radius \\ 2.0) do
+  def detect_collisions(system_module, particles, _collision_radius \\ 2.0) do
     # Start cache agents if not already running
     start_cache_agents()
 
@@ -514,7 +528,7 @@ defmodule AII do
     end
 
     # Get agent definitions
-    agents = system_module.__agents__()
+    _agents = system_module.__agents__()
 
     # Create particle system
     capacity = length(particles) + 10
@@ -522,10 +536,11 @@ defmodule AII do
 
     # Add particles
     Enum.each(particles, fn particle ->
-      energy_value = case particle.energy do
-        %AII.Types.Conserved{value: v} -> v
-        v when is_number(v) -> v
-      end
+      energy_value =
+        case particle.energy do
+          %AII.Types.Conserved{value: v} -> v
+          v when is_number(v) -> v
+        end
 
       position = extract_vec3(particle.position)
       velocity = extract_vec3(particle.velocity)
@@ -537,6 +552,7 @@ defmodule AII do
         energy: energy_value,
         id: particle.id
       }
+
       AII.NIF.add_particle(system_ref, particle_data)
     end)
 
@@ -546,6 +562,7 @@ defmodule AII do
         # Clean up
         AII.NIF.destroy_system(system_ref)
         {:ok, collision_flags}
+
       {:error, reason} ->
         # Clean up
         AII.NIF.destroy_system(system_ref)
@@ -583,7 +600,8 @@ defmodule AII do
         data -> {:ok, data}
       end
     catch
-      :exit, _ -> :not_found  # Agent not started
+      # Agent not started
+      :exit, _ -> :not_found
     end
   end
 
@@ -592,7 +610,8 @@ defmodule AII do
     try do
       Agent.update(@simulation_cache_agent, &Map.put(&1, cache_key, data))
     catch
-      :exit, _ -> :ok  # Agent not started, skip caching
+      # Agent not started, skip caching
+      :exit, _ -> :ok
     end
   end
 

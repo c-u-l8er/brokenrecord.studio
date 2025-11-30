@@ -80,7 +80,7 @@ defmodule AII.CodegenTest do
 
   describe "generate_auto/1" do
     test "auto-generates for spatial queries" do
-      interaction = %{body: {:nearby, [], []}}
+      interaction = %{name: :nearby, body: {:nearby, [], []}}
       code = Codegen.generate_auto(interaction)
 
       # Dispatches to RT cores (available on this system)
@@ -89,7 +89,7 @@ defmodule AII.CodegenTest do
     end
 
     test "auto-generates for matrix operations" do
-      interaction = %{body: {:matrix_multiply, [], []}}
+      interaction = %{name: :matrix_multiply, body: {:matrix_multiply, [], []}}
       code = Codegen.generate_auto(interaction)
 
       # Dispatches to tensor cores (available on this system)
@@ -98,7 +98,7 @@ defmodule AII.CodegenTest do
     end
 
     test "auto-generates for neural operations" do
-      interaction = %{body: {:predict, [], []}}
+      interaction = %{name: :predict, body: {:predict, [], []}}
       code = Codegen.generate_auto(interaction)
 
       # NPU not available, falls back to RT cores (first in chain after NPU)
@@ -107,7 +107,7 @@ defmodule AII.CodegenTest do
     end
 
     test "falls back to CPU for unknown operations" do
-      interaction = %{body: {:unknown_op, [], []}}
+      interaction = %{name: :unknown_op, body: {:unknown_op, [], []}}
       code = Codegen.generate_auto(interaction)
 
       assert String.contains?(code, "CPU Fallback")

@@ -12,8 +12,9 @@ defmodule AII.NIF do
   ~Z"""
   const std = @import("std");
   const beam = @import("beam");
-  // Hardware backends commented out to avoid compilation issues
-  // const gpu_backend = @import("gpu_backend.zig");
+  const vk = @cImport({ @cInclude("vulkan/vulkan.h"); });
+  // Hardware backends
+  const gpu_backend = @import("gpu_backend.zig");
   // const rt_cores = @import("rt_cores.zig");
   // const tensor_cores = @import("tensor_cores.zig");
   // const cpu_acceleration = @import("cpu_acceleration.zig");
@@ -479,37 +480,10 @@ defmodule AII.NIF do
 
   """
 
-
   # Particle System Management
-
-  @doc """
-  Creates a new particle system with the given capacity.
-
-  Returns a reference integer that can be used with other functions.
-  """
-
-  @doc """
-  Destroys a particle system and frees its memory.
-  """
 
   # Particle Operations
 
-  @doc """
-  Adds a particle to the system.
-
-  particle_data should be a map with keys:
-  - :position - {x, y, z} tuple
-  - :velocity - {x, y, z} tuple
-  - :mass - float
-  - :energy - float
-  - :id - integer
-  """
-
-  @doc """
-  Creates a new particle system with the given capacity.
-
-  Returns a reference integer that can be used with other functions.
-  """
   def create_particle_system(capacity) do
     try do
       case :erlang.apply(:aii_nif, :create_particle_system, [capacity]) do
@@ -525,9 +499,6 @@ defmodule AII.NIF do
     end
   end
 
-  @doc """
-  Destroys a particle system and frees its memory.
-  """
   def destroy_system(system_ref) do
     try do
       case :erlang.apply(:aii_nif, :destroy_system, [system_ref]) do
@@ -544,16 +515,6 @@ defmodule AII.NIF do
 
   # Particle Operations
 
-  @doc """
-  Adds a particle to the system.
-
-  particle_data should be a map with keys:
-  - :position - {x, y, z} tuple
-  - :velocity - {x, y, z} tuple
-  - :mass - float
-  - :energy - float
-  - :id - integer
-  """
   def add_particle(system_ref, particle_data) do
     try do
       case :erlang.apply(:aii_nif, :add_particle, [system_ref, particle_data]) do
@@ -571,10 +532,11 @@ defmodule AII.NIF do
           id: particle_data.id
         }
 
-        particles = case :ets.lookup(@fallback_systems, system_ref) do
-          [{^system_ref, existing}] -> existing
-          [] -> []
-        end
+        particles =
+          case :ets.lookup(@fallback_systems, system_ref) do
+            [{^system_ref, existing}] -> existing
+            [] -> []
+          end
 
         :ets.insert(@fallback_systems, {system_ref, particles ++ [particle]})
         :ok
@@ -598,14 +560,24 @@ defmodule AII.NIF do
             Enum.map(particles, fn p ->
               # Convert tuples back to maps for consistency
               %{
-                position: %{x: elem(p.position, 0), y: elem(p.position, 1), z: elem(p.position, 2)},
-                velocity: %{x: elem(p.velocity, 0), y: elem(p.velocity, 1), z: elem(p.velocity, 2)},
+                position: %{
+                  x: elem(p.position, 0),
+                  y: elem(p.position, 1),
+                  z: elem(p.position, 2)
+                },
+                velocity: %{
+                  x: elem(p.velocity, 0),
+                  y: elem(p.velocity, 1),
+                  z: elem(p.velocity, 2)
+                },
                 mass: p.mass,
                 energy: p.energy,
                 id: p.id
               }
             end)
-          [] -> []
+
+          [] ->
+            []
         end
     end
   end
@@ -656,8 +628,6 @@ defmodule AII.NIF do
     end
   end
 
-
-
   @doc """
   Runs simulation with scalar (non-SIMD) CPU operations.
   """
@@ -679,7 +649,13 @@ defmodule AII.NIF do
   """
   def run_simulation_with_hardware(system_ref, steps, dt, hardware_assignments, generated_code) do
     try do
-      case :erlang.apply(:aii_nif, :run_simulation_with_hardware, [system_ref, steps, dt, hardware_assignments, generated_code]) do
+      case :erlang.apply(:aii_nif, :run_simulation_with_hardware, [
+             system_ref,
+             steps,
+             dt,
+             hardware_assignments,
+             generated_code
+           ]) do
         :ok -> :ok
         {:error, reason} -> {:error, reason}
       end
@@ -710,13 +686,15 @@ defmodule AII.NIF do
   # Fallback CPU collision detection
   defp detect_collisions_cpu(system_ref) do
     # Get particles from fallback storage
-    particles = case :ets.lookup(@fallback_systems, system_ref) do
-      [{^system_ref, particles}] -> particles
-      [] -> []
-    end
+    particles =
+      case :ets.lookup(@fallback_systems, system_ref) do
+        [{^system_ref, particles}] -> particles
+        [] -> []
+      end
 
     # Simple CPU-based collision detection
     collision_radius = 2.0
+
     Enum.map(particles, fn particle ->
       # Check if this particle collides with any others
       Enum.any?(particles, fn other ->
@@ -724,7 +702,7 @@ defmodule AII.NIF do
           dx = particle.position.x - other.position.x
           dy = particle.position.y - other.position.y
           dz = particle.position.z - other.position.z
-          distance_squared = dx*dx + dy*dy + dz*dz
+          distance_squared = dx * dx + dy * dy + dz * dz
           distance_squared < collision_radius * collision_radius
         else
           false
@@ -743,15 +721,17 @@ defmodule AII.NIF do
 
   defp simulate_batch(system_ref, steps, dt) do
     # Get particles from fallback storage
-    particles = case :ets.lookup(@fallback_systems, system_ref) do
-      [{^system_ref, particles}] -> particles
-      [] -> []
-    end
+    particles =
+      case :ets.lookup(@fallback_systems, system_ref) do
+        [{^system_ref, particles}] -> particles
+        [] -> []
+      end
 
     # Run simulation steps
-    final_particles = Enum.reduce(1..steps, particles, fn _step, acc_particles ->
-      integrate_particles(acc_particles, dt)
-    end)
+    final_particles =
+      Enum.reduce(1..steps, particles, fn _step, acc_particles ->
+        integrate_particles(acc_particles, dt)
+      end)
 
     # Store updated particles
     :ets.insert(@fallback_systems, {system_ref, final_particles})

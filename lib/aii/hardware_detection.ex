@@ -9,20 +9,20 @@ defmodule AII.HardwareDetection do
   require Logger
 
   @type hardware_caps :: %{
-    vulkan: boolean(),
-    cuda: boolean(),
-    metal: boolean(),
-    opencl: boolean(),
-    rt_cores: boolean(),
-    tensor_cores: boolean(),
-    npu: boolean(),
-    simd_avx2: boolean(),
-    simd_avx512: boolean(),
-    simd_neon: boolean(),
-    core_count: non_neg_integer(),
-    gpu_count: non_neg_integer(),
-    npu_count: non_neg_integer()
-  }
+          vulkan: boolean(),
+          cuda: boolean(),
+          metal: boolean(),
+          opencl: boolean(),
+          rt_cores: boolean(),
+          tensor_cores: boolean(),
+          npu: boolean(),
+          simd_avx2: boolean(),
+          simd_avx512: boolean(),
+          simd_neon: boolean(),
+          core_count: non_neg_integer(),
+          gpu_count: non_neg_integer(),
+          npu_count: non_neg_integer()
+        }
 
   @doc """
   Detects all available hardware capabilities on the current system.
@@ -81,14 +81,18 @@ defmodule AII.HardwareDetection do
       # Check if Vulkan loader is available
       case System.find_executable("vulkaninfo") do
         nil -> false
+
         _path ->
           # Run vulkaninfo with timeout to check if Vulkan works
-          task = Task.async(fn ->
-            System.cmd("vulkaninfo", ["--summary"], stderr_to_stdout: true)
-          end)
+          task =
+            Task.async(fn ->
+              System.cmd("vulkaninfo", ["--summary"], stderr_to_stdout: true)
+            end)
 
           case Task.yield(task, 2000) do
-            {:ok, {_output, 0}} -> true
+            {:ok, {_output, 0}} ->
+              true
+
             _ ->
               Task.shutdown(task, :brutal_kill)
               false
@@ -103,15 +107,20 @@ defmodule AII.HardwareDetection do
   defp detect_cuda do
     # Check for NVIDIA CUDA toolkit
     case System.find_executable("nvidia-smi") do
-      nil -> false
+      nil ->
+        false
+
       _path ->
         # Check if CUDA runtime is available with timeout
-        task = Task.async(fn ->
-          System.cmd("nvidia-smi", [], stderr_to_stdout: true)
-        end)
+        task =
+          Task.async(fn ->
+            System.cmd("nvidia-smi", [], stderr_to_stdout: true)
+          end)
 
         case Task.yield(task, 2000) do
-          {:ok, {_output, 0}} -> true
+          {:ok, {_output, 0}} ->
+            true
+
           _ ->
             Task.shutdown(task, :brutal_kill)
             false
@@ -126,7 +135,9 @@ defmodule AII.HardwareDetection do
       {:unix, :darwin} ->
         # Check for Metal framework (simplified check)
         File.exists?("/System/Library/Frameworks/Metal.framework")
-      _ -> false
+
+      _ ->
+        false
     end
   end
 
@@ -134,15 +145,20 @@ defmodule AII.HardwareDetection do
   defp detect_opencl do
     # Check for OpenCL ICD loader
     case System.find_executable("clinfo") do
-      nil -> false
+      nil ->
+        false
+
       _path ->
         # Check OpenCL with timeout
-        task = Task.async(fn ->
-          System.cmd("clinfo", [], stderr_to_stdout: true)
-        end)
+        task =
+          Task.async(fn ->
+            System.cmd("clinfo", [], stderr_to_stdout: true)
+          end)
 
         case Task.yield(task, 2000) do
-          {:ok, {_output, 0}} -> true
+          {:ok, {_output, 0}} ->
+            true
+
           _ ->
             Task.shutdown(task, :brutal_kill)
             false
@@ -168,10 +184,13 @@ defmodule AII.HardwareDetection do
       {:unix, :darwin} ->
         # Apple Neural Engine (ANE) on Apple Silicon
         detect_apple_neural_engine()
+
       {:unix, :linux} ->
         # Check for various NPUs
         detect_linux_npu()
-      _ -> false
+
+      _ ->
+        false
     end
   end
 
@@ -182,15 +201,21 @@ defmodule AII.HardwareDetection do
     case :erlang.system_info(:cpu_topology) do
       cpus when is_list(cpus) ->
         # Check if any CPU has AVX2
-        has_avx2 = Enum.any?(cpus, fn cpu ->
-          case cpu do
-            %{available: features} when is_list(features) ->
-              :avx2 in features
-            _ -> false
-          end
-        end)
+        has_avx2 =
+          Enum.any?(cpus, fn cpu ->
+            case cpu do
+              %{available: features} when is_list(features) ->
+                :avx2 in features
+
+              _ ->
+                false
+            end
+          end)
+
         if has_avx2, do: true, else: fallback_avx2_detection()
-      _ -> fallback_avx2_detection()
+
+      _ ->
+        fallback_avx2_detection()
     end
   end
 
@@ -206,15 +231,22 @@ defmodule AII.HardwareDetection do
     # Check for AVX-512 support
     case :erlang.system_info(:cpu_topology) do
       cpus when is_list(cpus) ->
-        has_avx512 = Enum.any?(cpus, fn cpu ->
-          case cpu do
-            %{available: features} when is_list(features) ->
-              :avx512 in features
-            _ -> false
-          end
-        end)
-        if has_avx512, do: true, else: false  # No fallback for AVX-512 as it's less common
-      _ -> false
+        has_avx512 =
+          Enum.any?(cpus, fn cpu ->
+            case cpu do
+              %{available: features} when is_list(features) ->
+                :avx512 in features
+
+              _ ->
+                false
+            end
+          end)
+
+        # No fallback for AVX-512 as it's less common
+        if has_avx512, do: true, else: false
+
+      _ ->
+        false
     end
   end
 
@@ -232,13 +264,17 @@ defmodule AII.HardwareDetection do
       detect_vulkan() ->
         # Use Vulkan to count GPUs
         count_vulkan_gpus()
+
       detect_cuda() ->
         # Use NVIDIA tools
         count_cuda_gpus()
+
       detect_opencl() ->
         # Use OpenCL
         count_opencl_devices()
-      true -> 0
+
+      true ->
+        0
     end
   end
 
@@ -246,7 +282,8 @@ defmodule AII.HardwareDetection do
   defp detect_npu_count do
     if detect_npu() do
       case :os.type() do
-        {:unix, :darwin} -> 1  # Typically one ANE per SoC
+        # Typically one ANE per SoC
+        {:unix, :darwin} -> 1
         {:unix, :linux} -> count_linux_npus()
         _ -> 0
       end
@@ -260,13 +297,17 @@ defmodule AII.HardwareDetection do
   @spec has_rtx_hardware?() :: boolean()
   defp has_rtx_hardware? do
     # Check for RTX GPUs via nvidia-smi
-    task = Task.async(fn ->
-      System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"], stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"],
+          stderr_to_stdout: true
+        )
+      end)
 
     case Task.yield(task, 2000) do
       {:ok, {output, 0}} ->
         String.contains?(output, "RTX") or String.contains?(output, "GeForce RTX")
+
       _ ->
         Task.shutdown(task, :brutal_kill)
         # Fallback: assume RTX if we have CUDA (most modern NVIDIA GPUs have RTX)
@@ -277,15 +318,19 @@ defmodule AII.HardwareDetection do
   @spec has_volta_plus_hardware?() :: boolean()
   defp has_volta_plus_hardware? do
     # Check for Volta+ GPUs
-    task = Task.async(fn ->
-      System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"], stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"],
+          stderr_to_stdout: true
+        )
+      end)
 
     case Task.yield(task, 2000) do
       {:ok, {output, 0}} ->
         # List of Volta+ GPU names
         volta_plus = ["Tesla V100", "Tesla T4", "GeForce RTX", "A100", "H100", "L40"]
         Enum.any?(volta_plus, fn gpu -> String.contains?(output, gpu) end)
+
       _ ->
         Task.shutdown(task, :brutal_kill)
         # Fallback: assume Volta+ if we have CUDA (most modern NVIDIA GPUs are Volta+)
@@ -297,13 +342,15 @@ defmodule AII.HardwareDetection do
   defp detect_apple_neural_engine do
     # Check for Apple Neural Engine
     # This is a simplified check - in practice, would need Core ML or similar
-    task = Task.async(fn ->
-      System.cmd("system_profiler", ["SPHardwareDataType"], stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("system_profiler", ["SPHardwareDataType"], stderr_to_stdout: true)
+      end)
 
     case Task.yield(task, 2000) do
       {:ok, {output, 0}} ->
         String.contains?(output, "Apple M") or String.contains?(output, "Neural Engine")
+
       _ ->
         Task.shutdown(task, :brutal_kill)
         false
@@ -326,13 +373,15 @@ defmodule AII.HardwareDetection do
 
   @spec count_cuda_gpus() :: non_neg_integer()
   defp count_cuda_gpus do
-    task = Task.async(fn ->
-      System.cmd("nvidia-smi", ["--list-gpus"], stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("nvidia-smi", ["--list-gpus"], stderr_to_stdout: true)
+      end)
 
     case Task.yield(task, 2000) do
       {:ok, {output, 0}} ->
         String.split(output, "\n") |> Enum.count(fn line -> String.trim(line) != "" end)
+
       _ ->
         Task.shutdown(task, :brutal_kill)
         0
@@ -341,9 +390,10 @@ defmodule AII.HardwareDetection do
 
   @spec count_opencl_devices() :: non_neg_integer()
   defp count_opencl_devices do
-    task = Task.async(fn ->
-      System.cmd("clinfo", ["-l"], stderr_to_stdout: true)
-    end)
+    task =
+      Task.async(fn ->
+        System.cmd("clinfo", ["-l"], stderr_to_stdout: true)
+      end)
 
     case Task.yield(task, 2000) do
       {:ok, {output, 0}} ->
@@ -353,6 +403,7 @@ defmodule AII.HardwareDetection do
         |> Enum.count(fn line ->
           String.contains?(line, "Device") or String.contains?(line, "GPU")
         end)
+
       _ ->
         Task.shutdown(task, :brutal_kill)
         0

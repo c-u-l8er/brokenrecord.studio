@@ -59,7 +59,7 @@ pub const CPUAcceleration = struct {
 
                 // SIMD-accelerated inner loop
                 while (col + VecSize <= cols) : (col += VecSize) {
-                    const mat_vec = @as(Vec, matrix[row * cols + col..][0..VecSize].*);
+                    const mat_vec = @as(Vec, matrix[row * cols + col ..][0..VecSize].*);
                     const vec_vec = @as(Vec, vector[col..][0..VecSize].*);
 
                     const prod = mat_vec * vec_vec;
@@ -387,19 +387,23 @@ test "CPU acceleration basic functionality" {
     defer cpu_accel.deinit();
 
     // Test SIMD operations
-    const a = [_]f32{1.0, 2.0, 3.0, 4.0};
-    const b = [_]f32{5.0, 6.0, 7.0, 8.0};
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const b = [_]f32{ 5.0, 6.0, 7.0, 8.0 };
     var result: [4]f32 = undefined;
 
     CPUAcceleration.SIMDVectorOps.dotProduct(f32, &a, &b, &result);
 
     // Test parallel operations
-    const data = [_]f32{1.0, 2.0, 3.0, 4.0, 5.0};
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
     const sum = CPUAcceleration.ParallelOps.parallelReduce(
         f32,
         2,
         &data,
-        struct{ fn add(a: f32, b: f32) f32 { return a + b; } }.add,
+        struct {
+            fn add(a: f32, b: f32) f32 {
+                return a + b;
+            }
+        }.add,
         0.0,
     ) catch 0.0;
 
