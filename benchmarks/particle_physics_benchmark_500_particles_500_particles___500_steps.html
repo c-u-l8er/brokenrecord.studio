@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>Benchee Report</title>
+  <meta charset="utf-8">
+  <meta http-equiv="content-type" content="text/html; charset=utf8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+    <link rel="stylesheet" type="text/css" href="assets/stylesheets/benchee.css">
+    <link rel="stylesheet" type="text/css" href="assets/fontello/css/fontello.css">
+  
+</head>
+
+  <body>
+
+    <div class="header">
+  <h1>benchee report</h1>
+  
+
+  <span class="version-note">
+  <a href="javascript:toggleSystemDataInfo();" title="Click to toggle system info">System info</a>
+</span>
+
+</div>
+
+
+    <article id="system-info" class="benchee-systeminfo" >
+  <h3>System info</h3>
+  <ul class="benchee-systeminfo-list">
+    <li>Elixir: 1.18.4</li>
+    <li>Erlang: 27.3.4.6</li>
+    <li>Operating system: Linux</li>
+    <li>Available memory: 15.18 GB</li>
+    <li>CPU Information: AMD Ryzen AI 9 HX 370 w</li>
+    <li>Number of Available Cores: 24</li>
+  </ul>
+</article>
+
+
+    
+      <article>
+        <h2>
+          <a name="run_time" href="#run_time">500 particles - 500 steps Run Time</a>
+          <a href="https://github.com/PragTob/benchee_html/wiki/Chart-Types#individual">
+            <i
+              class="benchee-help-icon icon-question-circle-o"
+              title="Graphs showing the individual run time distribution for 500 particles - 500 steps.
+  Run Times Histogram shows the distribution of occurrences of specific run times in buckets.
+  Raw Run Times shows all individual recorded run times in the order they were recorded in."
+            ></i>
+          </a>
+        </h2>
+
+        <section>
+          <table>
+  <thead>
+    <tr>
+      <th class="text-left">Name</th>
+      
+        <th>Iterations per Second</th>
+      
+      <th>Average</th>
+      <th>Deviation</th>
+      <th>Median</th>
+      <th>Mode</th>
+      <th>Minimum</th>
+      <th>Maximum</th>
+      <th>Sample size</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+      
+      <tr>
+        
+          <td class="text-left">500 particles - 500 steps</td>
+        
+        
+          <td>105.11</td>
+          <td>9.51 ms</td>
+          <td>±10.49%</td>
+          <td>9.14 ms</td>
+          <td>none</td>
+          <td>8.37 ms</td>
+          <td>13.28 ms</td>
+        
+        <td>211</td>
+      </tr>
+    
+  </tbody>
+</table>
+
+        </section>
+
+        <section class="benchee-plot-container">
+          <div id="run-times-histogram" class="plot"></div>
+        </section>
+        <section class="benchee-plot-container">
+          <div id="raw-run-times" class="plot"></div>
+        </section>
+      </article>
+    
+
+    
+      <article>
+        <h2>
+          <a name="memory" href="#memory">500 particles - 500 steps Memory</a>
+          <a href="https://github.com/PragTob/benchee_html/wiki/Chart-Types#individual">
+            <i
+              class="benchee-help-icon icon-question-circle-o"
+              title="Graphs showing the individual memory usage distribution for 500 particles - 500 steps.
+  Run Times Histogram shows the distribution of occurrences of specific run times in buckets.
+  Raw Run Times shows all individual recorded run times in the order they were recorded in."
+            ></i>
+          </a>
+        </h2>
+
+        <section>
+          <table>
+  <thead>
+    <tr>
+      <th class="text-left">Name</th>
+      
+      <th>Average</th>
+      <th>Deviation</th>
+      <th>Median</th>
+      <th>Mode</th>
+      <th>Minimum</th>
+      <th>Maximum</th>
+      <th>Sample size</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+      
+      <tr>
+        
+          <td class="text-left">500 particles - 500 steps</td>
+        
+        
+          <td>639.59 KB</td>
+          <td>±0.00%</td>
+          <td>639.59 KB</td>
+          <td>639.59 KB</td>
+          <td>639.59 KB</td>
+          <td>639.59 KB</td>
+        
+        <td>99</td>
+      </tr>
+    
+  </tbody>
+</table>
+
+        </section>
+
+        
+      </article>
+    
+
+    <footer>
+      <a href="https://github.com/PragTob/benchee" target="blank">benchee version: 1.5.0 </a>
+<br/>
+<a href="https://github.com/PragTob/benchee_html" target="blank">benchee_html version: 1.0.1</a>
+
+
+    </footer>
+
+    
+  <script src="assets/javascripts/plotly-2.27.0.min.js"></script>
+  <script src="assets/javascripts/benchee.js"></script>
+
+
+
+    <script>
+      var scenario = {"name":"500 particles - 500 steps","job_name":"500 particles - 500 steps","input_name":"__no_input","run_time_data":{"statistics":{"maximum":13276880,"mode":null,"average":9513516.260663508,"median":9141783.0,"percentiles":{"25":8728411.0,"50":9141783.0,"75":10140807.0,"99":12403154.879999999},"minimum":8365087,"lower_outlier_bound":6609817.0,"upper_outlier_bound":12259401.0,"outliers":[12332820,12412746,13276880],"sample_size":211,"std_dev":997932.2857964496,"ips":105.11360601072398,"std_dev_ratio":0.10489626111458922,"relative_more":2.7086587699608833,"absolute_difference":6001255.371189823,"relative_less":0.3691864073430118,"std_dev_ips":11.026024262796957},"samples":[8923650,10489606,8684718,9860355,9071413,8652448,13276880,8547896,8872183,8561743,9207129,8365087,9160259,8843614,9961698,9118382,9940345,10487663,9476000,10031168,10254027,11667329,10275895,9711704,9788451,10196060,10863938,10308193,10123654,11555476,9802286,8867768,9233808,8666628,9874469,10698559,11359011,9105999,8748091,9391161,8619274,9074527,8812832,11066692,10151101,8479132,9037899,8690728,10594274,11488013,8586209,9965774,11665952,10415382,8376792,9229876,9088607,9653665,9195320,8649753,9455444,9240125,9317333,8854967,8728411,8965993,8613703,8997669,8615128,9035566,8624251,8878338,10344571,9929891,8936525,11594926,10734277,8587044,9577804,10742957,9675887,9120009,8936788,10227572,9538296,9971736,9221991,11930849,10324309,8591936,10817660,11092179,8453031,10403674,12034371,10051471,9396236,11785810,9141783,8687465,8929224,9952166,10356067,10278669,8604649,8618481,8650570,8733676,8840799,9713957,9390197,9215930,9157512,8922926,9977694,11138965,8943416,8967529,8661825,8580692,8584050,9387799,8576393,8998249,8665043,8766650,8673997,8812228,8748013,8753221,8731314,9461280,8860258,9071650,8749077,9493738,8692616,8746538,9058786,8496104,10026371,12332820,10911039,9514949,8450085,9684183,9111519,8545473,8500700,8742266,8510971,10408319,10657873,8548581,9022037,11034733,10464613,8491656,9758986,9256910,9525933,10818825,9143600,11414892,11993524,8631597,10294697,9135444,11057342,10772821,11415284,9422196,9138306,9868478,11023142,8754328,10083374,12412746,8857193,8562895,9509266,10177192,9156627,9033516,8430417,8741494,8401910,11152834,9809753,8400752,9595158,8390350,11508252,8733722,8821007,8578009,8668914,8995565,8646683,8799836,8571056,8588977,8604631,9015304,8566549,8600433,8437337,8878682,8457380,10140807,10632347]},"memory_usage_data":{"statistics":{"maximum":654936,"mode":654936,"average":654936.0,"median":654936.0,"percentiles":{"25":654936.0,"50":654936.0,"75":654936.0,"99":654936.0},"minimum":654936,"lower_outlier_bound":654936.0,"upper_outlier_bound":654936.0,"outliers":[],"sample_size":99,"std_dev":0.0,"ips":null,"std_dev_ratio":0.0,"relative_more":1.0,"absolute_difference":0.0,"relative_less":1.0,"std_dev_ips":null},"samples":[654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936,654936]},"tag":null};
+
+      var inputHeadline = ""
+
+      
+        drawRunTimeHistogram(scenario, inputHeadline);
+        drawRawRunTimeChart(scenario, inputHeadline);
+      
+
+      
+        if (scenario.memory_usage_data.statistics.std_dev !== 0) {
+          drawMemoryHistogram(scenario, inputHeadline);
+          drawRawMemoryChart(scenario, inputHeadline);
+        };
+      
+    </script>
+  </body>
+</html>

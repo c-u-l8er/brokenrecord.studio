@@ -51,7 +51,7 @@ defmodule ParticlePhysicsBenchmark do
       property :mass, Float, invariant: true
     end
 
-    definteraction :gravitational_force, accelerator: :cpu do
+    definteraction :gravitational_force, accelerator: :auto do
       let {p1, p2} do
         r_vec = p2.position - p1.position
         r_sq = dot(r_vec, r_vec)
@@ -69,7 +69,7 @@ defmodule ParticlePhysicsBenchmark do
       end
     end
 
-    definteraction :integrate_position, accelerator: :cpu do
+    definteraction :integrate_position, accelerator: :auto do
       let p do
         dt = 0.01
         p.position = p.position + p.velocity * dt

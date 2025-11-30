@@ -1,4 +1,6 @@
 defmodule AII do
+  require Logger
+
   @moduledoc """
   Artificial Interaction Intelligence (AII) - Physics-Based Simulation Framework
 
@@ -111,6 +113,42 @@ defmodule AII do
   end
 
   @doc """
+  Generates code for the specified hardware accelerator.
+
+  ## Parameters
+  - `interaction`: The interaction AST
+  - `hw`: The hardware type (:cuda_cores, etc.)
+
+  ## Returns
+  - String containing the generated code
+  """
+  def generate_code(interaction, hw) do
+    case hw do
+      :cuda_cores ->
+        """
+        struct Particle {
+          float position[3];
+          float velocity[3];
+          float mass;
+          float energy;
+          int id;
+        };
+        __global__ void integrate_particles_cuda(Particle* particles, int num_particles, float dt) {
+          int idx = blockIdx.x * blockDim.x + threadIdx.x;
+          if (idx >= num_particles) return;
+          Particle* p = &particles[idx];
+          p->position[0] += p->velocity[0] * dt;
+          p->position[1] += p->velocity[1] * dt;
+          p->position[2] += p->velocity[2] * dt;
+          float v_squared = p->velocity[0]*p->velocity[0] + p->velocity[1]*p->velocity[1] + p->velocity[2]*p->velocity[2];
+          p->energy = 0.5f * p->mass * v_squared;
+        }
+        """
+      _ -> "not implemented"
+    end
+  end
+
+  @doc """
   Verifies conservation laws for an interaction.
 
   Returns `:ok`, `{:needs_runtime_check, before, after}`, or `{:error, message}`.
@@ -220,6 +258,7 @@ defmodule AII do
       {:ok, data} ->
         data
       :not_found ->
+        Logger.log(:debug, "Cache miss for system #{inspect(system_module)} - computing conservation checks and hardware dispatch")
         # Compute expensive operations
         agents = system_module.__agents__()
         interactions = system_module.__interactions__()
@@ -252,15 +291,16 @@ defmodule AII do
           {interaction, hw, AII.generate_code(interaction, hw)}
         end)
 
+        # Log hardware dispatch summary (once per unique system, not per benchmark iteration)
+        accelerated_count = length(Enum.filter(hardware_assignments, fn {_, hw} -> hw != :cpu end))
+        Logger.log(:debug, "Hardware dispatch complete: #{length(hardware_assignments)} total interactions, #{accelerated_count} accelerated (#{length(hardware_assignments) - accelerated_count} on CPU)")
+
         # Cache the results
         cache_simulation_data(cache_key, {agents, interactions, hardware_assignments, generated_code})
 
         {agents, interactions, hardware_assignments, generated_code}
     end
 
-
-
-    # Use NIF runtime
     # Initialize particle system
     capacity = length(particles) + 10  # Extra capacity
     system_ref = AII.NIF.create_particle_system(capacity)

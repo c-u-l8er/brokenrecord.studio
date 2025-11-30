@@ -142,7 +142,7 @@ defmodule AII.HardwareDispatcher do
 
   @collision_keywords [:collision, :colliding?, :collide, :intersect, :overlap, :hit_test]
 
-  @matrix_keywords [:matrix_multiply, :dot_product, :matmul, :outer_product,
+  @matrix_keywords [:matrix_multiply, :dot_product, :dot, :matmul, :outer_product,
                     :linear_transform, :tensor_op, :gemm, :blas]
 
   @neural_keywords [:predict, :infer, :neural_network, :forward_pass,
