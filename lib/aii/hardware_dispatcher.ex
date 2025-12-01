@@ -8,7 +8,8 @@ defmodule AII.HardwareDispatcher do
 
   alias AII.HardwareDetection
 
-  @type hardware :: :auto | :rt_cores | :tensor_cores | :npu | :cuda_cores | :gpu | :cpu | :parallel | :simd
+  @type hardware ::
+          :auto | :rt_cores | :tensor_cores | :npu | :cuda_cores | :gpu | :cpu | :parallel | :simd
   @type fallback_chain :: [hardware()]
   @type dispatch_result :: {:ok, hardware()} | {:error, term()}
 
@@ -38,9 +39,20 @@ defmodule AII.HardwareDispatcher do
           {:ok, optimal}
         else
           # Fall back to available hardware in priority order
-          fallback_chain = [:rt_cores, :tensor_cores, :npu, :cuda_cores, :gpu, :parallel, :simd, :cpu]
+          fallback_chain = [
+            :rt_cores,
+            :tensor_cores,
+            :npu,
+            :cuda_cores,
+            :gpu,
+            :parallel,
+            :simd,
+            :cpu
+          ]
+
           chain_dispatch(interaction, fallback_chain)
         end
+
       explicit_hw ->
         # Use explicit accelerator hint
         if has_hardware?(explicit_hw) do
@@ -61,15 +73,33 @@ defmodule AII.HardwareDispatcher do
   @spec has_hardware?(hardware()) :: boolean()
   def has_hardware?(hw) do
     case hw do
-      :cpu -> true
-      :parallel -> HardwareDetection.detect().core_count > 1
-      :simd -> HardwareDetection.detect().simd_avx2 or HardwareDetection.detect().simd_avx512 or HardwareDetection.detect().simd_neon
-      :gpu -> HardwareDetection.detect().gpu_count > 0
-      :cuda_cores -> HardwareDetection.detect().cuda
-      :rt_cores -> HardwareDetection.detect().rt_cores
-      :tensor_cores -> HardwareDetection.detect().tensor_cores
-      :npu -> HardwareDetection.detect().npu
-      _ -> false
+      :cpu ->
+        true
+
+      :parallel ->
+        HardwareDetection.detect().core_count > 1
+
+      :simd ->
+        HardwareDetection.detect().simd_avx2 or HardwareDetection.detect().simd_avx512 or
+          HardwareDetection.detect().simd_neon
+
+      :gpu ->
+        HardwareDetection.detect().gpu_count > 0
+
+      :cuda_cores ->
+        HardwareDetection.detect().cuda
+
+      :rt_cores ->
+        HardwareDetection.detect().rt_cores
+
+      :tensor_cores ->
+        HardwareDetection.detect().tensor_cores
+
+      :npu ->
+        HardwareDetection.detect().npu
+
+      _ ->
+        false
     end
   end
 
@@ -81,13 +111,13 @@ defmodule AII.HardwareDispatcher do
     caps = HardwareDetection.detect()
 
     [:cpu] ++
-    (if caps.core_count > 1, do: [:parallel], else: []) ++
-    (if caps.simd_avx2 or caps.simd_avx512 or caps.simd_neon, do: [:simd], else: []) ++
-    (if caps.gpu_count > 0, do: [:gpu], else: []) ++
-    (if caps.cuda, do: [:cuda_cores], else: []) ++
-    (if caps.rt_cores, do: [:rt_cores], else: []) ++
-    (if caps.tensor_cores, do: [:tensor_cores], else: []) ++
-    (if caps.npu, do: [:npu], else: [])
+      if(caps.core_count > 1, do: [:parallel], else: []) ++
+      if(caps.simd_avx2 or caps.simd_avx512 or caps.simd_neon, do: [:simd], else: []) ++
+      if(caps.gpu_count > 0, do: [:gpu], else: []) ++
+      if(caps.cuda, do: [:cuda_cores], else: []) ++
+      if(caps.rt_cores, do: [:rt_cores], else: []) ++
+      if(caps.tensor_cores, do: [:tensor_cores], else: []) ++
+      if caps.npu, do: [:npu], else: []
   end
 
   @doc """
@@ -133,20 +163,44 @@ defmodule AII.HardwareDispatcher do
     end
   end
 
-
-
   # AST analysis functions
 
-  @spatial_keywords [:nearby, :colliding?, :within_radius, :find_neighbors,
-                     :spatial_query, :ray_cast, :collision, :bvh, :octree]
+  @spatial_keywords [
+    :nearby,
+    :colliding?,
+    :within_radius,
+    :find_neighbors,
+    :spatial_query,
+    :ray_cast,
+    :collision,
+    :bvh,
+    :octree
+  ]
 
   @collision_keywords [:collision, :colliding?, :collide, :intersect, :overlap, :hit_test]
 
-  @matrix_keywords [:matrix_multiply, :dot_product, :dot, :matmul, :outer_product,
-                    :linear_transform, :tensor_op, :gemm, :blas]
+  @matrix_keywords [
+    :matrix_multiply,
+    :dot_product,
+    :dot,
+    :matmul,
+    :outer_product,
+    :linear_transform,
+    :tensor_op,
+    :gemm,
+    :blas
+  ]
 
-  @neural_keywords [:predict, :infer, :neural_network, :forward_pass,
-                   :model_eval, :embedding, :attention, :transformer]
+  @neural_keywords [
+    :predict,
+    :infer,
+    :neural_network,
+    :forward_pass,
+    :model_eval,
+    :embedding,
+    :attention,
+    :transformer
+  ]
 
   @parallel_keywords [:reduce, :scan, :flow]
 
@@ -157,7 +211,15 @@ defmodule AII.HardwareDispatcher do
   @simd_keywords [:vector_add, :vector_mul, :simd_map, :vectorized, :avx]
 
   # Physics operations that can be vectorized with SIMD
-  @vectorizable_keywords [:position, :velocity, :integrate, :update, :force, :acceleration, :momentum]
+  @vectorizable_keywords [
+    :position,
+    :velocity,
+    :integrate,
+    :update,
+    :force,
+    :acceleration,
+    :momentum
+  ]
 
   defp has_spatial_query?(interaction) do
     ast_contains?(interaction, @spatial_keywords)
@@ -195,14 +257,17 @@ defmodule AII.HardwareDispatcher do
   # Check if interaction contains collision detection operations
   defp has_collision_detection?(interaction) do
     # Check interaction name first (more reliable than AST search)
-    interaction.name in [:detect_collisions, :gravitational_collisions, :conserved_collisions] or
-    ast_contains?(interaction, @collision_keywords)
+    name = Map.get(interaction, :name)
+
+    name in [:detect_collisions, :gravitational_collisions, :conserved_collisions] or
+      ast_contains?(interaction, @collision_keywords)
   end
 
   # Check if interaction is suitable for GPU compute
-  defp has_gpu_compute?(interaction) do
+  defp _has_gpu_compute?(interaction) do
     # GPU is good for parallel workloads and vector operations
-    has_parallel_compute?(interaction) or has_vector_ops?(interaction) or is_vectorizable_physics?(interaction)
+    has_parallel_compute?(interaction) or has_vector_ops?(interaction) or
+      is_vectorizable_physics?(interaction)
   end
 
   # AST traversal to find keywords
@@ -225,13 +290,16 @@ defmodule AII.HardwareDispatcher do
         else
           {node, acc}
         end
+
       {call, _, _} = node, acc ->
         if call in keywords do
           {node, true}
         else
           {node, acc}
         end
-      node, acc -> {node, acc}
+
+      node, acc ->
+        {node, acc}
     end)
     |> elem(1)
   end

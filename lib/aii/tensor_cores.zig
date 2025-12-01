@@ -44,25 +44,19 @@ pub const TensorCores = struct {
         if (self.cooperative_matrix_shader) |shader| self.backend.destroyShader(shader);
     }
 
-    pub fn matrixMultiply(
-        self: *TensorCores,
-        matrix_a: []const f32,
-        matrix_b: []const f32,
-        result: []f32,
-        dims: MatrixDimensions,
-        layout: MatrixLayout,
-        matrix_type: MatrixType
-    ) !void {
+    pub fn matrixMultiply(self: *TensorCores, matrix_a: []const f32, matrix_b: []const f32, result: []f32, dims: MatrixDimensions, _layout: MatrixLayout, _matrix_type: MatrixType) !void {
         // Validate dimensions
         if (matrix_a.len != dims.m * dims.k or
             matrix_b.len != dims.k * dims.n or
-            result.len != dims.m * dims.n) {
+            result.len != dims.m * dims.n)
+        {
             return error.InvalidDimensions;
         }
 
         // Check if tensor cores are supported
         if (!self.backend.capabilities.tensor_cores or
-            !self.backend.capabilities.cooperative_matrix) {
+            !self.backend.capabilities.cooperative_matrix)
+        {
             return error.TensorCoresNotSupported;
         }
 
@@ -70,25 +64,16 @@ pub const TensorCores = struct {
         try self.createMatrixBuffers(matrix_a, matrix_b, result, dims);
 
         // Create cooperative matrix shader
-        try self.createCooperativeMatrixShader(matrix_type);
+        try self.createCooperativeMatrixShader(_matrix_type);
 
         // Execute matrix multiplication
         try self.executeMatrixMultiply(dims);
 
         // Download result
-        try self.backend.downloadData(
-            self.result_buffer.?,
-            std.mem.sliceAsBytes(result),
-            0
-        );
+        try self.backend.downloadData(self.result_buffer.?, std.mem.sliceAsBytes(result), 0);
     }
 
-    pub fn forceMatrix(
-        self: *TensorCores,
-        positions: []const [3]f32,
-        masses: []const f32,
-        forces: []f32
-    ) !void {
+    pub fn forceMatrix(self: *TensorCores, positions: []const [3]f32, masses: []const f32, forces: []f32) !void {
         // Specialized for N-body force calculations
         // F_ij = G * m_i * m_j * (r_j - r_i) / |r_j - r_i|^3
 
@@ -113,67 +98,32 @@ pub const TensorCores = struct {
         @memcpy(mass_matrix, masses);
 
         // Create result buffer for forces
-        const force_buffer = try self.backend.createBuffer(
-            forces.len * @sizeOf(f32),
-            .storage
-        );
+        const force_buffer = try self.backend.createBuffer(forces.len * @sizeOf(f32), .storage);
         defer self.backend.destroyBuffer(force_buffer);
 
         // Execute force calculation shader
-        try self.executeForceCalculation(
-            pos_matrix,
-            mass_matrix,
-            force_buffer,
-            particle_count
-        );
+        try self.executeForceCalculation(pos_matrix, mass_matrix, force_buffer, particle_count);
 
         // Download forces
-        try self.backend.downloadData(
-            force_buffer,
-            std.mem.sliceAsBytes(forces),
-            0
-        );
+        try self.backend.downloadData(force_buffer, std.mem.sliceAsBytes(forces), 0);
     }
 
     // Private methods
 
-    fn createMatrixBuffers(
-        self: *TensorCores,
-        matrix_a: []const f32,
-        matrix_b: []const f32,
-        result: []const f32,
-        dims: MatrixDimensions
-    ) !void {
+    fn createMatrixBuffers(self: *TensorCores, matrix_a: []const f32, matrix_b: []const f32, result: []const f32, _dims: MatrixDimensions) !void {
         // Clean up existing buffers
         if (self.matrix_a_buffer) |buf| self.backend.destroyBuffer(buf);
         if (self.matrix_b_buffer) |buf| self.backend.destroyBuffer(buf);
         if (self.result_buffer) |buf| self.backend.destroyBuffer(buf);
 
         // Create new buffers
-        self.matrix_a_buffer = try self.backend.createBuffer(
-            matrix_a.len * @sizeOf(f32),
-            .storage
-        );
-        self.matrix_b_buffer = try self.backend.createBuffer(
-            matrix_b.len * @sizeOf(f32),
-            .storage
-        );
-        self.result_buffer = try self.backend.createBuffer(
-            result.len * @sizeOf(f32),
-            .storage
-        );
+        self.matrix_a_buffer = try self.backend.createBuffer(matrix_a.len * @sizeOf(f32), .storage);
+        self.matrix_b_buffer = try self.backend.createBuffer(matrix_b.len * @sizeOf(f32), .storage);
+        self.result_buffer = try self.backend.createBuffer(result.len * @sizeOf(f32), .storage);
 
         // Upload data
-        try self.backend.uploadData(
-            self.matrix_a_buffer.?,
-            std.mem.sliceAsBytes(matrix_a),
-            0
-        );
-        try self.backend.uploadData(
-            self.matrix_b_buffer.?,
-            std.mem.sliceAsBytes(matrix_b),
-            0
-        );
+        try self.backend.uploadData(self.matrix_a_buffer.?, std.mem.sliceAsBytes(matrix_a), 0);
+        try self.backend.uploadData(self.matrix_b_buffer.?, std.mem.sliceAsBytes(matrix_b), 0);
     }
 
     fn createCooperativeMatrixShader(self: *TensorCores, matrix_type: MatrixType) !void {
@@ -202,40 +152,23 @@ pub const TensorCores = struct {
         };
 
         // Dispatch compute shader
-        try self.backend.dispatchCompute(
-            self.cooperative_matrix_shader.?,
-            workgroups,
-            &[_]gpu_backend.BufferHandle{
-                self.matrix_a_buffer.?,
-                self.matrix_b_buffer.?,
-                self.result_buffer.?,
-            },
-            &[_]f32{
-                @floatFromInt(dims.m),
-                @floatFromInt(dims.n),
-                @floatFromInt(dims.k),
-            }
-        );
+        try self.backend.dispatchCompute(self.cooperative_matrix_shader.?, workgroups, &[_]gpu_backend.BufferHandle{
+            self.matrix_a_buffer.?,
+            self.matrix_b_buffer.?,
+            self.result_buffer.?,
+        }, &[_]f32{
+            @floatFromInt(dims.m),
+            @floatFromInt(dims.n),
+            @floatFromInt(dims.k),
+        });
     }
 
-    fn executeForceCalculation(
-        self: *TensorCores,
-        positions: []const f32,
-        masses: []const f32,
-        force_buffer: gpu_backend.BufferHandle,
-        particle_count: usize
-    ) !void {
+    fn executeForceCalculation(self: *TensorCores, positions: []const f32, masses: []const f32, force_buffer: gpu_backend.BufferHandle, particle_count: usize) !void {
         // Create position and mass buffers
-        const pos_buffer = try self.backend.createBuffer(
-            positions.len * @sizeOf(f32),
-            .storage
-        );
+        const pos_buffer = try self.backend.createBuffer(positions.len * @sizeOf(f32), .storage);
         defer self.backend.destroyBuffer(pos_buffer);
 
-        const mass_buffer = try self.backend.createBuffer(
-            masses.len * @sizeOf(f32),
-            .storage
-        );
+        const mass_buffer = try self.backend.createBuffer(masses.len * @sizeOf(f32), .storage);
         defer self.backend.destroyBuffer(mass_buffer);
 
         // Upload data
@@ -253,22 +186,17 @@ pub const TensorCores = struct {
             1,
         };
 
-        try self.backend.dispatchCompute(
-            force_shader,
-            workgroups,
-            &[_]gpu_backend.BufferHandle{
-                pos_buffer,
-                mass_buffer,
-                force_buffer,
-            },
-            &[_]f32{
-                @floatFromInt(particle_count),
-                6.67430e-11, // Gravitational constant
-            }
-        );
+        try self.backend.dispatchCompute(force_shader, workgroups, &[_]gpu_backend.BufferHandle{
+            pos_buffer,
+            mass_buffer,
+            force_buffer,
+        }, &[_]f32{
+            @floatFromInt(particle_count),
+            6.67430e-11, // Gravitational constant
+        });
     }
 
-    fn generateCooperativeMatrixSPIRV(self: *TensorCores, matrix_type: MatrixType) ![]u32 {
+    fn generateCooperativeMatrixSPIRV(self: *TensorCores, _matrix_type: MatrixType) ![]u32 {
         // This would generate actual SPIR-V bytecode for cooperative matrix operations
         // For now, return a placeholder that would need to be replaced with real SPIR-V
 
@@ -313,7 +241,7 @@ test "tensor cores basic functionality" {
             .shader_int8 = true,
             .shader_fp16 = true,
             .max_workgroup_size = 1024,
-            .max_compute_workgroups = [_]u32{65535, 65535, 65535},
+            .max_compute_workgroups = [_]u32{ 65535, 65535, 65535 },
             .device_name = "RTX 3090",
         },
         .device = .{ .vulkan = .{ .instance = 1, .physical_device = 2, .device = 3 } },
@@ -332,5 +260,5 @@ test "tensor cores basic functionality" {
     };
 
     _ = dims;
-    _ = tensor_cores;
+    // tensor_cores is used in defer
 }

@@ -13,13 +13,15 @@ defmodule AII.Codegen do
   - CPU: Fallback CPU
   """
 
+  require Logger
+
   use Agent
 
   alias AII.HardwareDispatcher
 
   @type hardware :: HardwareDispatcher.hardware()
   @type interaction :: map()
-  @type generated_code :: String.t()
+  @type generated_code :: String.t() | binary()
 
   # Start the cache agent
   def start_link(_opts \\ []) do
@@ -38,21 +40,7 @@ defmodule AII.Codegen do
   """
   @spec generate(interaction(), hardware()) :: generated_code()
   def generate(interaction, hardware) do
-    # Create cache key
-    cache_key = {interaction, hardware}
-
-    # Check cache first
-    case get_cached_code(cache_key) do
-      {:ok, code} ->
-        code
-
-      :not_found ->
-        # Generate code
-        code = generate_uncached(interaction, hardware)
-        # Cache the result
-        cache_code(cache_key, code)
-        code
-    end
+    generate_uncached(interaction, hardware)
   end
 
   @doc """
@@ -71,12 +59,16 @@ defmodule AII.Codegen do
       :rt_cores -> generate_rt_cores(interaction)
       :tensor_cores -> generate_tensor_cores(interaction, hardware)
       :npu -> generate_npu(interaction)
+      :cuda -> generate_cuda_cores(interaction)
       :cuda_cores -> generate_cuda_cores(interaction)
+      # Now returns SPIR-V binary
       :gpu -> generate_gpu(interaction)
       :parallel -> generate_parallel(interaction)
       :simd -> generate_simd(interaction)
       :cpu -> generate_cpu(interaction)
       :auto -> generate_auto(interaction)
+      # Fallback for unknown hardware
+      _ -> generate_cpu(interaction)
     end
   end
 
@@ -358,40 +350,99 @@ defmodule AII.Codegen do
     """
   end
 
-  # GPU: General GPU Compute
+  # GPU: General GPU Compute - Returns SPIR-V binary for particle physics
   defp generate_gpu(interaction) do
+    glsl_source = generate_glsl_compute_shader(interaction)
+    compile_glsl_to_spirv(glsl_source)
+  end
+
+  # Generate GLSL compute shader source
+  defp generate_glsl_compute_shader(_interaction) do
     """
-    // Generic GPU Compute Shader - Generated for #{inspect(interaction)}
-
     #version 450
+    #extension GL_ARB_compute_shader : enable
 
-    layout(local_size_x = 256) in;
+    layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-    layout(binding = 0) buffer Particles {
+    // Storage buffers for particle data
+    layout(binding = 0) buffer Positions {
         vec3 positions[];
+    };
+
+    layout(binding = 1) buffer Velocities {
         vec3 velocities[];
+    };
+
+    layout(binding = 2) buffer Masses {
         float masses[];
+    };
+
+    // Uniform buffer for simulation parameters
+    layout(binding = 3) uniform SimulationParams {
+        float dt;
+        float gravity;
+        uint num_particles;
     };
 
     void main() {
         uint idx = gl_GlobalInvocationID.x;
 
-        if (idx < positions.length()) {
-            // Generated GPU code
-            vec3 position = positions[idx];
-            vec3 velocity = velocities[idx];
-            float mass = masses[idx];
-
-            // Example interaction
-            velocity.y -= 9.81 * 0.016;  // Gravity
-
-            position += velocity * 0.016;  // Euler integration
-
-            positions[idx] = position;
-            velocities[idx] = velocity;
+        // Bounds check
+        if (idx >= num_particles) {
+            return;
         }
+
+        // Load particle data
+        vec3 position = positions[idx];
+        vec3 velocity = velocities[idx];
+        float mass = masses[idx];
+
+        // Apply forces (gravity in Y direction)
+        vec3 force = vec3(0.0, -gravity * mass, 0.0);
+
+        // Integrate velocity (F = ma, a = F/m)
+        vec3 acceleration = force / mass;
+        velocity += acceleration * dt;
+
+        // Integrate position
+        position += velocity * dt;
+
+        // Store updated data
+        positions[idx] = position;
+        velocities[idx] = velocity;
     }
     """
+  end
+
+  # Compile GLSL source to SPIR-V binary
+  defp compile_glsl_to_spirv(glsl_source) do
+    # Create temporary files
+    tmp_dir = System.tmp_dir!()
+    glsl_file = Path.join(tmp_dir, "aii_shader_#{:rand.uniform(1_000_000)}.comp")
+    spirv_file = Path.join(tmp_dir, "aii_shader_#{:rand.uniform(1_000_000)}.spv")
+
+    try do
+      # Write GLSL to temp file
+      File.write!(glsl_file, glsl_source)
+
+      # Run glslangValidator
+      {output, exit_code} =
+        System.cmd("glslangValidator", ["-V", "-o", spirv_file, glsl_file],
+          stderr_to_stdout: true
+        )
+
+      if exit_code != 0 do
+        Logger.error("GLSL compilation failed: #{output}")
+        raise "Failed to compile GLSL to SPIR-V"
+      end
+
+      # Read SPIR-V binary
+      File.read!(spirv_file)
+    after
+      # Clean up temp files
+      File.rm(glsl_file)
+      File.rm(spirv_file)
+    end
   end
 
   # Multi-core CPU: Parallel Elixir

@@ -71,7 +71,7 @@ defmodule AIIRuntime do
   ## Returns
   `:ok` if conservation holds, `{:violations, violations}` if not
   """
-  def check_conservation(state, tolerance \\ 1.0e-6) do
+  def check_conservation(_state, _tolerance \\ 1.0e-6) do
     # Mock conservation check - always pass for now
     :ok
   end

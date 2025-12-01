@@ -43,6 +43,7 @@ defmodule AII.NIFTest do
         energy: 0.0,
         id: 1
       }
+
       assert NIF.add_particle(ref, particle) == :ok
     end
 
@@ -99,9 +100,15 @@ defmodule AII.NIFTest do
   end
 
   describe "hardware acceleration" do
-    test "get_hardware_info stub" do
+    test "get_hardware_info returns GPU capabilities" do
       result = NIF.get_hardware_info()
-      assert is_list(result) or result == []
+      assert is_map(result)
+      # Check for expected capability keys if GPU is available
+      if map_size(result) > 0 do
+        assert Map.has_key?(result, "compute_shaders")
+        assert Map.has_key?(result, "device_name")
+        assert Map.has_key?(result, "shader_fp16")
+      end
     end
 
     test "set_accelerator stub" do

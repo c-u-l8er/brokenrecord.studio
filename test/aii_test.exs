@@ -105,9 +105,8 @@ defmodule AIITest do
 
   describe "run_simulation/2" do
     test "fails for invalid system module" do
-      assert_raise UndefinedFunctionError, fn ->
-        AII.run_simulation(InvalidModule)
-      end
+      result = AII.run_simulation(InvalidModule)
+      assert {:error, :invalid_system_module} = result
     end
 
     test "runs simulation with mock system" do
@@ -179,7 +178,7 @@ defmodule AIITest do
 
   describe "generate_code/2" do
     test "generates code for different hardware" do
-      interaction = %{body: {:simple, [], []}}
+      interaction = %{name: :simple, body: {:simple, [], []}}
 
       code = AII.generate_code(interaction, :cpu)
       assert is_binary(code)
@@ -187,7 +186,98 @@ defmodule AIITest do
 
       code = AII.generate_code(interaction, :gpu)
       assert is_binary(code)
-      assert String.contains?(code, "Generic GPU")
+      # SPIR-V binary
+      assert byte_size(code) > 0
+    end
+
+    test "GPU code generation includes compute shader elements" do
+      interaction = %{name: :physics, body: {:particle_update, [], []}}
+
+      code = AII.generate_code(interaction, :gpu)
+      assert is_binary(code)
+      # Basic check that it's not empty SPIR-V
+      assert byte_size(code) > 20
+    end
+
+    test "different interactions produce different GPU code" do
+      interaction1 = %{name: :gravity, body: {:gravity, [], []}}
+      interaction2 = %{name: :collision, body: {:collision, [], []}}
+
+      code1 = AII.generate_code(interaction1, :gpu)
+      code2 = AII.generate_code(interaction2, :gpu)
+
+      # Codes should be different (though both valid SPIR-V)
+      assert code1 != code2
+      assert is_binary(code1)
+      assert is_binary(code2)
+    end
+  end
+
+  describe "hardware acceleration" do
+    test "available_hardware includes GPU when detected" do
+      hardware = AII.available_hardware()
+      assert is_list(hardware)
+      assert :cpu in hardware
+      # GPU might not be detected in test environment, but list should be valid
+    end
+
+    test "performance hints for GPU are higher than CPU" do
+      cpu_hint = AII.performance_hint(:cpu)
+      gpu_hint = AII.performance_hint(:gpu)
+
+      assert is_number(cpu_hint)
+      assert is_number(gpu_hint)
+      assert gpu_hint > cpu_hint
+    end
+
+    test "run_simulation with GPU hardware doesn't crash" do
+      defmodule TestGPUSystem do
+        def __agents__, do: [%{conserves: [:energy]}]
+        def __interactions__, do: [%{name: :gpu_test, body: {:gpu_compute, [], []}}]
+      end
+
+      # This should not crash, even if GPU is not available (falls back to CPU)
+      result = AII.run_simulation(TestGPUSystem, steps: 1, hardware: :gpu)
+      assert {:ok, results} = result
+      assert results.hardware == :gpu
+      assert results.conservation_verified == true
+    end
+
+    test "run_simulation with auto hardware selection" do
+      defmodule TestAutoSystem do
+        def __agents__, do: [%{conserves: [:momentum]}]
+        def __interactions__, do: [%{name: :auto_test, body: {:auto_compute, [], []}}]
+      end
+
+      result = AII.run_simulation(TestAutoSystem, steps: 1, hardware: :auto)
+      assert {:ok, results} = result
+      assert results.hardware == :auto
+      assert results.conservation_verified == true
+    end
+
+    test "memory hints are reasonable for different hardware" do
+      cpu_memory = AII.memory_hint(:cpu)
+      gpu_memory = AII.memory_hint(:gpu)
+
+      assert is_number(cpu_memory)
+      assert is_number(gpu_memory)
+      # Baseline
+      assert cpu_memory == 1.0
+      assert gpu_memory >= cpu_memory
+    end
+
+    test "efficiency hints reflect hardware characteristics" do
+      cpu_efficiency = AII.efficiency_hint(:cpu)
+      gpu_efficiency = AII.efficiency_hint(:gpu)
+      npu_efficiency = AII.efficiency_hint(:npu)
+
+      assert is_number(cpu_efficiency)
+      assert is_number(gpu_efficiency)
+      assert is_number(npu_efficiency)
+      # NPU should be most efficient
+      assert npu_efficiency >= gpu_efficiency
+      # GPU might be less efficient than CPU for some workloads
+      assert gpu_efficiency <= cpu_efficiency
     end
   end
 

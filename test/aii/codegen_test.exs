@@ -45,9 +45,9 @@ defmodule AII.CodegenTest do
       interaction = %{body: {:gpu_compute, [], []}}
       code = Codegen.generate(interaction, :gpu)
 
-      assert String.contains?(code, "#version 450")
-      assert String.contains?(code, "local_size_x = 256")
-      assert String.contains?(code, "Compute Shader")
+      # GPU code is now SPIR-V binary
+      assert is_binary(code)
+      assert byte_size(code) > 0
     end
 
     test "generates parallel CPU code" do
@@ -136,7 +136,9 @@ defmodule AII.CodegenTest do
 
       assert String.contains?(cpu_code, "CPU Fallback")
       assert String.contains?(simd_code, "__m256")
-      assert String.contains?(gpu_code, "#version 450")
+      # GPU code is SPIR-V binary
+      assert is_binary(gpu_code)
+      assert byte_size(gpu_code) > 0
     end
   end
 
