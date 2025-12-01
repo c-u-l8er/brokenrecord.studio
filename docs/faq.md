@@ -1,5 +1,5 @@
 # AII Frequently Asked Questions (FAQ)
-## Everything You Need to Know About Artificial Interaction Intelligence
+## Everything You Need to Know About AII Physics Framework [L2-3]
 
 **Last Updated:** November 2025  
 **Version:** 1.0
@@ -25,7 +25,7 @@
 
 AII (Artificial Interaction Intelligence) is a new approach to artificial intelligence that processes particles through physical interactions instead of tokens through attention mechanisms. By enforcing conservation laws at compile time, AII achieves zero hallucination while delivering 500× performance improvement through heterogeneous hardware acceleration.
 
-### How is AII different from traditional AI?
+### How is AII different from traditional programming/AI? [L28-29]
 
 | Traditional AI | AII |
 |---------------|-----|
@@ -36,11 +36,11 @@ AII (Artificial Interaction Intelligence) is a new approach to artificial intell
 | CPU/GPU only | RT/Tensor/NPU/CUDA cores |
 | Black box reasoning | Explainable through physics |
 
-### What does "zero hallucination" mean?
+### What does "conservation guarantee" mean? [L39-40]
 
 Zero hallucination means AII cannot create information that doesn't exist in its input context. The conservation type system enforces that information can only be transferred or transformed, never created from nothing. This is verified at compile time, making hallucination mathematically impossible.
 
-### Is AII a large language model (LLM)?
+### Is AII an AI system or LLM? [L43-44]
 
 No. AII is a fundamentally different architecture. LLMs process sequences of tokens using transformer networks. AII processes particles using physics-based interactions. However, AII can be used for similar tasks (chatbots, code generation, content creation) with better correctness guarantees.
 
@@ -52,11 +52,11 @@ AII was created by BrokenRecord Studio, a research and development company focus
 
 Yes! The core AII runtime and DSL are open source under Apache 2.0 license. Enterprise features (hosted inference, SLA guarantees, dedicated support) are available through commercial licensing.
 
-### What programming languages can I use with AII?
+### What programming languages does AII use? [L55-56]
 
 AII's primary interface is an Elixir DSL (Domain-Specific Language) that compiles to a Zig runtime. You don't need to know Elixir or Zig to use AII - the DSL is designed to be intuitive and readable. SDKs for Python, JavaScript, and Rust are planned.
 
-### Can AII replace my current AI system?
+### Can AII replace my current software systems? [L59-60]
 
 It depends on your use case. AII excels at:
 - ✅ Tasks requiring zero hallucination (chatbots, Q&A)
@@ -80,7 +80,7 @@ AII may not be ideal for:
 
 ## Technical Questions
 
-### How does the conservation type system work?
+### How does the conservation type system work? [L83-84]
 
 The conservation type system uses a special `Conserved<T>` wrapper type that can only be transferred, never created or destroyed:
 
@@ -181,7 +181,7 @@ mix run my_app.exs
 mix aii.inspect --watch
 ```
 
-### Can I integrate AII with existing ML models?
+### Can I integrate AII with existing systems? [L184-185]
 
 Yes! AII can wrap existing neural networks:
 
@@ -374,7 +374,7 @@ Claude (Anthropic) uses Constitutional AI to reduce hallucination through reinfo
 
 **Use Together:** AII for AI agents + Unity/Unreal for rendering
 
-### AII vs RAG (Retrieval Augmented Generation)?
+### How does AII ensure reliability? [L377-378]
 
 RAG reduces hallucination by retrieving relevant documents before generation. AII eliminates hallucination through conservation.
 
@@ -399,7 +399,7 @@ brew install elixir  # macOS
 # or: apt-get install elixir  # Linux
 
 # 2. Clone AII
-git clone https://github.com/brokenrecord-studio/aii
+git clone https://github.com/c-u-l8er/brokenrecord.studio
 cd aii
 
 # 3. Install dependencies
@@ -488,9 +488,9 @@ defmodule MyAppTest do
       
       before = total_information(initial)
       after_steps = simulate(initial, steps)
-      after = total_information(after_steps)
+      after_total = total_information(after_steps)
       
-      assert_in_delta before, after, 0.001
+      assert_in_delta before, after_total, 0.001
     end
   end
 end
@@ -760,7 +760,7 @@ See full policy: https://brokenrecord.studio/responsible-ai
   - Custom SLA, dedicated team
   - Professional services included
 
-### What's included in "professional services"?
+### What community resources are available? [L763-764]
 
 **Standard Services:**
 - **Migration Consulting:** $50K - $200K
@@ -849,13 +849,13 @@ Apply: https://brokenrecord.studio/partners
 
 ### Community Support
 - **Discord:** https://discord.gg/brokenrecord
-- **GitHub Discussions:** https://github.com/brokenrecord-studio/aii/discussions
+- **GitHub Discussions:** https://github.com/c-u-l8er/brokenrecord.studio/discussions
 - **Stack Overflow:** Tag [aii]
 
 ### Documentation
 - **Quickstart:** https://brokenrecord.studio/docs/quickstart
 - **API Reference:** https://brokenrecord.studio/docs/api
-- **Examples:** https://github.com/brokenrecord-studio/aii-examples
+- **Examples:** https://github.com/c-u-l8er/brokenrecord.studio/examples
 
 ### Commercial Inquiries
 - **Email:** sales@brokenrecord.studio

@@ -27,6 +27,8 @@
 
 ## Competitive Landscape
 
+AII competes in the space of reliable computing frameworks and physics simulation engines, not traditional AI systems. While AII provides a foundation for building hallucination-free AI, its current implementation focuses on physics-based computation with conservation guarantees.
+
 ```
                 Traditional AI              AII
                 (OpenAI, Anthropic)        (Us)
