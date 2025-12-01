@@ -40,7 +40,20 @@ defmodule AII.Codegen do
   """
   @spec generate(interaction(), hardware()) :: generated_code()
   def generate(interaction, hardware) do
-    generate_uncached(interaction, hardware)
+    cache_key = {interaction, hardware}
+
+    case get_cached_code(cache_key) do
+      {:ok, code} ->
+        # Logger.debug("Code generation cache hit for #{inspect(cache_key)}")
+        code
+
+      :not_found ->
+        Logger.debug("Code generation cache miss for #{inspect(cache_key)}, generating...")
+        {time, code} = :timer.tc(fn -> generate_uncached(interaction, hardware) end)
+        Logger.debug("Code generation took #{time / 1000} ms")
+        cache_code(cache_key, code)
+        code
+    end
   end
 
   @doc """
@@ -76,12 +89,19 @@ defmodule AII.Codegen do
   defp get_cached_code(cache_key) do
     try do
       case Agent.get(__MODULE__, &Map.get(&1, cache_key)) do
-        nil -> :not_found
-        code -> {:ok, code}
+        nil ->
+          Logger.debug("Cache miss for key: #{inspect(cache_key)}")
+          :not_found
+
+        code ->
+          # Logger.debug("Cache hit for key: #{inspect(cache_key)}")
+          {:ok, code}
       end
     catch
       # Agent not started
-      :exit, _ -> :not_found
+      :exit, reason ->
+        Logger.debug("Cache agent not available for get: #{inspect(reason)}")
+        :not_found
     end
   end
 
@@ -89,9 +109,12 @@ defmodule AII.Codegen do
   defp cache_code(cache_key, code) do
     try do
       Agent.update(__MODULE__, &Map.put(&1, cache_key, code))
+      Logger.debug("Cached code for key: #{inspect(cache_key)}")
     catch
       # Agent not started, skip caching
-      :exit, _ -> :ok
+      :exit, reason ->
+        Logger.debug("Cache agent not available for update: #{inspect(reason)}")
+        :ok
     end
   end
 

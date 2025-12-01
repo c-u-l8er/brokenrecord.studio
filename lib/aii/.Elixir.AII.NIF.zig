@@ -387,7 +387,7 @@ fn performRTCollisionQueries(particle_system: *ParticleSystem) ![]bool {
           };
       }
 
-      std.debug.print("GPU compute dispatch activated for {} particles, {} steps (GPU backend initialized successfully)\n", .{particle_system.particle_count, steps});
+      // std.debug.print("GPU compute dispatch activated for {} particles, {} steps (GPU backend initialized successfully)\n", .{particle_system.particle_count, steps});
 
       // TODO: Implement full GPU particle simulation
       // For now, we'll still use CPU but indicate GPU is active

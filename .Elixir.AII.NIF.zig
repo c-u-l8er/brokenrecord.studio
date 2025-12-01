@@ -3,7 +3,9 @@
 // ref lib/aii/nif.ex:12
 const std = @import("std");
 const beam = @import("beam");
-const vk = @cImport({ @cInclude("vulkan/vulkan.h"); });
+const vk = @cImport({
+    @cInclude("vulkan/vulkan.h");
+});
 // Hardware backends
 const gpu_backend = @import("gpu_backend.zig");
 // const rt_cores = @import("rt_cores.zig");
@@ -12,30 +14,28 @@ const gpu_backend = @import("gpu_backend.zig");
 // const npu_backend = @import("npu_backend.zig");
 
 const Vec3 = struct {
-  x: f32,
-  y: f32,
-  z: f32,
+    x: f32,
+    y: f32,
+    z: f32,
 };
 
 const Particle = struct {
-  position: Vec3,
-  velocity: Vec3,
-  mass: f32,
-  energy: f32, // Conserved quantity
-  id: u32,
+    position: Vec3,
+    velocity: Vec3,
+    mass: f32,
+    energy: f32, // Conserved quantity
+    id: u32,
 
-  pub fn kineticEnergy(self: Particle) f32 {
-    const v2 = self.velocity.x*self.velocity.x + self.velocity.y*self.velocity.y + self.velocity.z*self.velocity.z;
-    return 0.5 * self.mass * v2;
-  }
+    pub fn kineticEnergy(self: Particle) f32 {
+        const v2 = self.velocity.x * self.velocity.x + self.velocity.y * self.velocity.y + self.velocity.z * self.velocity.z;
+        return 0.5 * self.mass * v2;
+    }
 };
-
-
 
 // RT Cores collision detection structures
 const RTCollisionContext = struct {
-  acceleration_structure: ?*anyopaque = null,
-  initialized: bool = false,
+    acceleration_structure: ?*anyopaque = null,
+    initialized: bool = false,
 };
 
 var rt_collision_ctx: RTCollisionContext = RTCollisionContext{};
@@ -74,9 +74,9 @@ const ParticleSystem = struct {
 
         // Update positions
         for (self.particles) |*p| {
-          p.position.x += p.velocity.x * dt;
-          p.position.y += p.velocity.y * dt;
-          p.position.z += p.velocity.z * dt;
+            p.position.x += p.velocity.x * dt;
+            p.position.y += p.velocity.y * dt;
+            p.position.z += p.velocity.z * dt;
         }
 
         // Conservation check: verify energy after
@@ -98,65 +98,35 @@ const ParticleSystem = struct {
         var i: usize = 0;
         while (i + 3 < self.particle_count) : (i += 4) {
             // Load 4 particles into SIMD vectors
-            const vx = @Vector(4, f32){
-                self.particles[i+0].velocity.x,
-                self.particles[i+1].velocity.x,
-                self.particles[i+2].velocity.x,
-                self.particles[i+3].velocity.x
-            };
-            const vy = @Vector(4, f32){
-                self.particles[i+0].velocity.y,
-                self.particles[i+1].velocity.y,
-                self.particles[i+2].velocity.y,
-                self.particles[i+3].velocity.y
-            };
-            const vz = @Vector(4, f32){
-                self.particles[i+0].velocity.z,
-                self.particles[i+1].velocity.z,
-                self.particles[i+2].velocity.z,
-                self.particles[i+3].velocity.z
-            };
+            const vx = @Vector(4, f32){ self.particles[i + 0].velocity.x, self.particles[i + 1].velocity.x, self.particles[i + 2].velocity.x, self.particles[i + 3].velocity.x };
+            const vy = @Vector(4, f32){ self.particles[i + 0].velocity.y, self.particles[i + 1].velocity.y, self.particles[i + 2].velocity.y, self.particles[i + 3].velocity.y };
+            const vz = @Vector(4, f32){ self.particles[i + 0].velocity.z, self.particles[i + 1].velocity.z, self.particles[i + 2].velocity.z, self.particles[i + 3].velocity.z };
 
-            const px = @Vector(4, f32){
-                self.particles[i+0].position.x,
-                self.particles[i+1].position.x,
-                self.particles[i+2].position.x,
-                self.particles[i+3].position.x
-            };
-            const py = @Vector(4, f32){
-                self.particles[i+0].position.y,
-                self.particles[i+1].position.y,
-                self.particles[i+2].position.y,
-                self.particles[i+3].position.y
-            };
-            const pz = @Vector(4, f32){
-                self.particles[i+0].position.z,
-                self.particles[i+1].position.z,
-                self.particles[i+2].position.z,
-                self.particles[i+3].position.z
-            };
+            const px = @Vector(4, f32){ self.particles[i + 0].position.x, self.particles[i + 1].position.x, self.particles[i + 2].position.x, self.particles[i + 3].position.x };
+            const py = @Vector(4, f32){ self.particles[i + 0].position.y, self.particles[i + 1].position.y, self.particles[i + 2].position.y, self.particles[i + 3].position.y };
+            const pz = @Vector(4, f32){ self.particles[i + 0].position.z, self.particles[i + 1].position.z, self.particles[i + 2].position.z, self.particles[i + 3].position.z };
 
             // SIMD integration: position += velocity * dt
-            const dt_vec = @Vector(4, f32){dt, dt, dt, dt};
+            const dt_vec = @Vector(4, f32){ dt, dt, dt, dt };
             const new_px = px + vx * dt_vec;
             const new_py = py + vy * dt_vec;
             const new_pz = pz + vz * dt_vec;
 
             // Store results back
-            self.particles[i+0].position.x = new_px[0];
-            self.particles[i+1].position.x = new_px[1];
-            self.particles[i+2].position.x = new_px[2];
-            self.particles[i+3].position.x = new_px[3];
+            self.particles[i + 0].position.x = new_px[0];
+            self.particles[i + 1].position.x = new_px[1];
+            self.particles[i + 2].position.x = new_px[2];
+            self.particles[i + 3].position.x = new_px[3];
 
-            self.particles[i+0].position.y = new_py[0];
-            self.particles[i+1].position.y = new_py[1];
-            self.particles[i+2].position.y = new_py[2];
-            self.particles[i+3].position.y = new_py[3];
+            self.particles[i + 0].position.y = new_py[0];
+            self.particles[i + 1].position.y = new_py[1];
+            self.particles[i + 2].position.y = new_py[2];
+            self.particles[i + 3].position.y = new_py[3];
 
-            self.particles[i+0].position.z = new_pz[0];
-            self.particles[i+1].position.z = new_pz[1];
-            self.particles[i+2].position.z = new_pz[2];
-            self.particles[i+3].position.z = new_pz[3];
+            self.particles[i + 0].position.z = new_pz[0];
+            self.particles[i + 1].position.z = new_pz[1];
+            self.particles[i + 2].position.z = new_pz[2];
+            self.particles[i + 3].position.z = new_pz[3];
         }
 
         // Handle remaining particles with scalar operations
@@ -178,16 +148,16 @@ const ParticleSystem = struct {
     }
 
     pub fn applyForce(self: *ParticleSystem, force: Vec3, dt: f32) void {
-      for (self.particles) |*p| {
-        const acceleration = Vec3{
-          .x = force.x / p.mass,
-          .y = force.y / p.mass,
-          .z = force.z / p.mass,
-        };
-        p.velocity.x += acceleration.x * dt;
-        p.velocity.y += acceleration.y * dt;
-        p.velocity.z += acceleration.z * dt;
-      }
+        for (self.particles) |*p| {
+            const acceleration = Vec3{
+                .x = force.x / p.mass,
+                .y = force.y / p.mass,
+                .z = force.z / p.mass,
+            };
+            p.velocity.x += acceleration.x * dt;
+            p.velocity.y += acceleration.y * dt;
+            p.velocity.z += acceleration.z * dt;
+        }
     }
 
     pub fn addParticle(self: *ParticleSystem, particle: Particle) !void {
@@ -237,10 +207,12 @@ pub fn add_particle(system_ref: u64, particle: Particle) Error!void {
     system.addParticle(particle) catch return Error.AllocFail;
 }
 
-pub fn get_particles(system_ref: u64) Error![]const Particle {
+pub fn get_particles(env: beam.env, system_ref: u64) !beam.term {
     const system = systems.get(system_ref) orelse return Error.SystemNotFound;
 
-    return system.getParticles();
+    const particles = system.getParticles();
+    const data = std.mem.sliceAsBytes(particles);
+    return beam.make_binary(env, data);
 }
 
 pub fn destroy_system(system_ref: u64) Error!void {
@@ -261,8 +233,6 @@ pub fn run_simulation_batch(system_ref: u64, steps: i64, dt: f64) Error!void {
         system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
     }
 }
-
-
 
 pub fn run_simulation_batch_scalar(system_ref: u64, steps: i64, dt: f64) Error!void {
     const system = systems.get(system_ref) orelse return Error.SystemNotFound;
@@ -311,11 +281,11 @@ fn performRTCollisionQueries(system: *ParticleSystem) ![]bool {
         // Check if this particle collides with any other particle
         var has_collision = false;
         for (system.particles[0..system.particle_count], 0..) |other, j| {
-            if (i != j) {  // Don't check collision with self
+            if (i != j) { // Don't check collision with self
                 const dx = particle.position.x - other.position.x;
                 const dy = particle.position.y - other.position.y;
                 const dz = particle.position.z - other.position.z;
-                const distance_squared = dx*dx + dy*dy + dz*dz;
+                const distance_squared = dx * dx + dy * dy + dz * dz;
                 const collision_radius: f32 = 2.0; // Example collision radius
 
                 if (distance_squared < collision_radius * collision_radius) {
@@ -328,144 +298,136 @@ fn performRTCollisionQueries(system: *ParticleSystem) ![]bool {
     }
 
     return collision_results;
-  }
+}
 
-  pub fn run_simulation_with_hardware(
-      system_ref: u64,
-      steps: i64,
-      dt: f64,
-      hardware_assignments: beam.term,
-      generated_code: beam.term
-  ) Error!void {
-      const system = systems.get(system_ref) orelse return Error.SystemNotFound;
+pub fn run_simulation_with_hardware(system_ref: u64, steps: i64, dt: f64, hardware_assignments: beam.term, generated_code: beam.term) Error!void {
+    const system = systems.get(system_ref) orelse return Error.SystemNotFound;
 
-      // Simplified: Parse hardware assignments to determine execution strategy
-      const execution_strategy = analyze_hardware_assignments(hardware_assignments) catch .simd;
+    // Simplified: Parse hardware assignments to determine execution strategy
+    const execution_strategy = analyze_hardware_assignments(hardware_assignments) catch .simd;
 
-      _ = generated_code; // Not used in simplified implementation
+    _ = generated_code; // Not used in simplified implementation
 
-      var i: i64 = 0;
-      while (i < steps) : (i += 1) {
-          switch (execution_strategy) {
-              .simd => {
-                  // Use CPU SIMD - this is actually implemented
-                  system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
-              },
-              .parallel => {
-                  // Use multi-core CPU - simplified implementation
-                  execute_parallel_cpu(system, @floatCast(dt)) catch {
-                      // Fallback to SIMD CPU
-                      system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
-                  };
-              },
-              else => {
-                  // Default to SIMD CPU for all other strategies (framework demonstration)
-                  system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
-              },
-          }
-      }
-  }
+    var i: i64 = 0;
+    while (i < steps) : (i += 1) {
+        switch (execution_strategy) {
+            .simd => {
+                // Use CPU SIMD - this is actually implemented
+                system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
+            },
+            .parallel => {
+                // Use multi-core CPU - simplified implementation
+                execute_parallel_cpu(system, @floatCast(dt)) catch {
+                    // Fallback to SIMD CPU
+                    system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
+                };
+            },
+            else => {
+                // Default to SIMD CPU for all other strategies (framework demonstration)
+                system.integrateEulerSIMD(@floatCast(dt)) catch return Error.ConservationViolated;
+            },
+        }
+    }
+}
 
-  const ExecutionStrategy = enum {
-      auto,
-      rt_cores,
-      tensor_cores,
-      npu,
-      cuda_cores,
-      gpu,
-      cpu,
-      parallel,
-      simd,
-  };
+const ExecutionStrategy = enum {
+    auto,
+    rt_cores,
+    tensor_cores,
+    npu,
+    cuda_cores,
+    gpu,
+    cpu,
+    parallel,
+    simd,
+};
 
-  fn analyze_hardware_assignments(hardware_assignments: beam.term) !ExecutionStrategy {
-      // TODO: Parse Erlang list of {interaction, hardware} tuples
-      // For now, default to SIMD - in practice this would analyze the assignments
+fn analyze_hardware_assignments(hardware_assignments: beam.term) !ExecutionStrategy {
+    // TODO: Parse Erlang list of {interaction, hardware} tuples
+    // For now, default to SIMD - in practice this would analyze the assignments
 
-      _ = hardware_assignments;
-      return .simd; // Default to SIMD for now
-  }
+    _ = hardware_assignments;
+    return .simd; // Default to SIMD for now
+}
 
-  fn execute_with_rt_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
-      // RT cores implementation would go here
-      _ = generated_code;
-      try system.integrateEulerSIMD(dt);
-  }
+fn execute_with_rt_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
+    // RT cores implementation would go here
+    _ = generated_code;
+    try system.integrateEulerSIMD(dt);
+}
 
-  fn execute_with_tensor_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
-      // Tensor cores implementation would go here
-      _ = generated_code;
-      try system.integrateEulerSIMD(dt);
-  }
+fn execute_with_tensor_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
+    // Tensor cores implementation would go here
+    _ = generated_code;
+    try system.integrateEulerSIMD(dt);
+}
 
-  fn execute_with_gpu(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
-      // GPU compute implementation would go here
-      _ = generated_code;
-      try system.integrateEulerSIMD(dt);
-  }
+fn execute_with_gpu(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
+    // GPU compute implementation would go here
+    _ = generated_code;
+    try system.integrateEulerSIMD(dt);
+}
 
-  fn execute_with_cuda_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
-      // CUDA cores implementation would go here
-      _ = generated_code;
-      try system.integrateEulerSIMD(dt);
-  }
+fn execute_with_cuda_cores(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
+    // CUDA cores implementation would go here
+    _ = generated_code;
+    try system.integrateEulerSIMD(dt);
+}
 
-  fn execute_with_npu(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
-      // NPU implementation would go here
-      _ = generated_code;
-      try system.integrateEulerSIMD(dt);
-  }
+fn execute_with_npu(system: *ParticleSystem, dt: f32, generated_code: beam.term) !void {
+    // NPU implementation would go here
+    _ = generated_code;
+    try system.integrateEulerSIMD(dt);
+}
 
+fn execute_parallel_cpu(system: *ParticleSystem, dt: f32) !void {
+    // Simplified parallel CPU execution using std.Thread
+    const num_cores = std.Thread.getCpuCount() catch 1;
+    if (num_cores <= 1) {
+        return system.integrateEulerSIMD(dt);
+    }
 
-  fn execute_parallel_cpu(system: *ParticleSystem, dt: f32) !void {
-      // Simplified parallel CPU execution using std.Thread
-      const num_cores = std.Thread.getCpuCount() catch 1;
-      if (num_cores <= 1) {
-          return system.integrateEulerSIMD(dt);
-      }
+    // Divide particles among cores
+    const particles_per_core = system.particle_count / num_cores;
+    const remainder = system.particle_count % num_cores;
 
-      // Divide particles among cores
-      const particles_per_core = system.particle_count / num_cores;
-      const remainder = system.particle_count % num_cores;
+    var threads = try system.allocator.alloc(std.Thread, num_cores);
+    defer system.allocator.free(threads);
 
-      var threads = try system.allocator.alloc(std.Thread, num_cores);
-      defer system.allocator.free(threads);
+    var thread_data = try system.allocator.alloc(ParallelThreadData, num_cores);
+    defer system.allocator.free(thread_data);
 
-      var thread_data = try system.allocator.alloc(ParallelThreadData, num_cores);
-      defer system.allocator.free(thread_data);
+    for (0..num_cores) |i| {
+        const start_idx = i * particles_per_core + @min(i, remainder);
+        const end_idx = if (i == num_cores - 1)
+            system.particle_count
+        else
+            (i + 1) * particles_per_core + @min(i + 1, remainder);
 
-      for (0..num_cores) |i| {
-          const start_idx = i * particles_per_core + @min(i, remainder);
-          const end_idx = if (i == num_cores - 1)
-              system.particle_count
-          else
-              (i + 1) * particles_per_core + @min(i + 1, remainder);
+        thread_data[i] = ParallelThreadData{
+            .particles = system.particles[start_idx..end_idx],
+            .dt = dt,
+        };
 
-          thread_data[i] = ParallelThreadData{
-              .particles = system.particles[start_idx..end_idx],
-              .dt = dt,
-          };
+        threads[i] = try std.Thread.spawn(.{}, parallel_integrate_thread, .{&thread_data[i]});
+    }
 
-          threads[i] = try std.Thread.spawn(.{}, parallel_integrate_thread, .{&thread_data[i]});
-      }
+    // Wait for all threads to complete
+    for (threads) |thread| {
+        thread.join();
+    }
+}
 
-      // Wait for all threads to complete
-      for (threads) |thread| {
-          thread.join();
-      }
-  }
+const ParallelThreadData = struct {
+    particles: []Particle,
+    dt: f32,
+};
 
-  const ParallelThreadData = struct {
-      particles: []Particle,
-      dt: f32,
-  };
-
-  fn parallel_integrate_thread(data: *ParallelThreadData) void {
-      // Simple Euler integration for this thread's particles
-      for (data.particles) |*particle| {
-          particle.position.x += particle.velocity.x * data.dt;
-          particle.position.y += particle.velocity.y * data.dt;
-          particle.position.z += particle.velocity.z * data.dt;
-      }
-  }
-
+fn parallel_integrate_thread(data: *ParallelThreadData) void {
+    // Simple Euler integration for this thread's particles
+    for (data.particles) |*particle| {
+        particle.position.x += particle.velocity.x * data.dt;
+        particle.position.y += particle.velocity.y * data.dt;
+        particle.position.z += particle.velocity.z * data.dt;
+    }
+}

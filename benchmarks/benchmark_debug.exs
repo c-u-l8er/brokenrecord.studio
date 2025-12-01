@@ -19,9 +19,9 @@ defmodule BenchmarkDebug do
     use AII.DSL
 
     defagent Particle do
-      state :position, AII.Types.Vec3
-      state :velocity, AII.Types.Vec3
-      property :mass, Float, invariant: true
+      state(:position, AII.Types.Vec3)
+      state(:velocity, AII.Types.Vec3)
+      property(:mass, Float, invariant: true)
     end
 
     definteraction :integrate, accelerator: :auto do
@@ -34,12 +34,12 @@ defmodule BenchmarkDebug do
   defmodule ConservationSystem do
     use AII.DSL
 
-    conserved_quantity :energy, type: :scalar, law: :sum
+    conserved_quantity(:energy, type: :scalar, law: :sum)
 
     defagent Particle do
-      state :position, AII.Types.Vec3
-      state :velocity, AII.Types.Vec3
-      property :mass, Float, invariant: true
+      state(:position, AII.Types.Vec3)
+      state(:velocity, AII.Types.Vec3)
+      property(:mass, Float, invariant: true)
     end
 
     definteraction :integrate_with_conservation, accelerator: :auto do
@@ -54,14 +54,15 @@ defmodule BenchmarkDebug do
     use AII.DSL
 
     defagent Particle do
-      state :position, AII.Types.Vec3
-      state :velocity, AII.Types.Vec3
-      property :mass, Float, invariant: true
+      state(:position, AII.Types.Vec3)
+      state(:velocity, AII.Types.Vec3)
+      property(:mass, Float, invariant: true)
     end
 
     definteraction :detect_collisions, accelerator: :auto do
       let {p1, p2} do
         distance = magnitude(p2.position - p1.position)
+
         if distance < 2.0 do
           conserved(:collisions, 1)
         end
@@ -94,26 +95,28 @@ defmodule BenchmarkDebug do
 
     particles = test_particles(10)
 
-    Benchee.run(%{
-      "NIF SIMD (10 particles, 100 steps)" => fn ->
-        ref = AII.NIF.create_particle_system(20)
-        Enum.each(particles, &AII.NIF.add_particle(ref, &1))
-        AII.NIF.run_simulation_batch(ref, 100, 0.01)
-        AII.NIF.destroy_system(ref)
-      end,
-      "NIF Scalar (10 particles, 100 steps)" => fn ->
-        ref = AII.NIF.create_particle_system(20)
-        Enum.each(particles, &AII.NIF.add_particle(ref, &1))
-        AII.NIF.run_simulation_batch_scalar(ref, 100, 0.01)
-        AII.NIF.destroy_system(ref)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "NIF SIMD (10 particles, 100 steps)" => fn ->
+          ref = AII.NIF.create_particle_system(20)
+          Enum.each(particles, &AII.NIF.add_particle(ref, &1))
+          AII.NIF.run_simulation_batch(ref, 100, 0.01)
+          AII.NIF.destroy_system(ref)
+        end,
+        "NIF Scalar (10 particles, 100 steps)" => fn ->
+          ref = AII.NIF.create_particle_system(20)
+          Enum.each(particles, &AII.NIF.add_particle(ref, &1))
+          AII.NIF.run_simulation_batch_scalar(ref, 100, 0.01)
+          AII.NIF.destroy_system(ref)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   def benchmark_conservation_checking do
@@ -122,19 +125,21 @@ defmodule BenchmarkDebug do
     agents = SimpleParticleSystem.__agents__()
     interactions = SimpleParticleSystem.__interactions__()
 
-    Benchee.run(%{
-      "Simple System Conservation" => fn ->
-        Enum.each(interactions, fn interaction ->
-          AII.verify_conservation(interaction, agents)
-        end)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "Simple System Conservation" => fn ->
+          Enum.each(interactions, fn interaction ->
+            AII.verify_conservation(interaction, agents)
+          end)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   def benchmark_hardware_dispatch do
@@ -142,19 +147,21 @@ defmodule BenchmarkDebug do
 
     interactions = SimpleParticleSystem.__interactions__()
 
-    Benchee.run(%{
-      "Simple Interaction Dispatch" => fn ->
-        Enum.each(interactions, fn interaction ->
-          AII.dispatch_interaction(interaction)
-        end)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "Simple Interaction Dispatch" => fn ->
+          Enum.each(interactions, fn interaction ->
+            AII.dispatch_interaction(interaction)
+          end)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   def benchmark_code_generation do
@@ -162,19 +169,21 @@ defmodule BenchmarkDebug do
 
     interactions = SimpleParticleSystem.__interactions__()
 
-    Benchee.run(%{
-      "Simple Interaction Code Gen" => fn ->
-        Enum.each(interactions, fn interaction ->
-          AII.generate_code(interaction, :cpu)
-        end)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "Simple Interaction Code Gen" => fn ->
+          Enum.each(interactions, fn interaction ->
+            AII.generate_code(interaction, :cpu)
+          end)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   def benchmark_collision_detection do
@@ -182,17 +191,19 @@ defmodule BenchmarkDebug do
 
     particles = test_particles(10)
 
-    Benchee.run(%{
-      "RT Cores Collision Detection (10 particles)" => fn ->
-        AII.detect_collisions(CollisionSystem, particles, 2.0)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "RT Cores Collision Detection (10 particles)" => fn ->
+          AII.detect_collisions(CollisionSystem, particles, 2.0)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   # ============================================================================
@@ -202,40 +213,43 @@ defmodule BenchmarkDebug do
   def benchmark_pipeline_stages do
     IO.puts("\n🔬 Benchmarking Pipeline Stages...")
 
-    particles = test_particles(5)  # Small count for stage analysis
+    # Small count for stage analysis
+    particles = test_particles(5)
 
-    Benchee.run(%{
-      "Full AII Pipeline (5 particles, 1 step)" => fn ->
-        AII.run_simulation(SimpleParticleSystem, steps: 1, dt: 0.01, particles: particles)
-      end,
-      "Conservation + Dispatch + CodeGen (cached)" => fn ->
-        # This simulates the overhead without NIF execution
-        agents = SimpleParticleSystem.__agents__()
-        interactions = SimpleParticleSystem.__interactions__()
+    Benchee.run(
+      %{
+        "Full AII Pipeline (5 particles, 1 step)" => fn ->
+          AII.run_simulation(SimpleParticleSystem, steps: 1, dt: 0.01, particles: particles)
+        end,
+        "Conservation + Dispatch + CodeGen (cached)" => fn ->
+          # This simulates the overhead without NIF execution
+          agents = SimpleParticleSystem.__agents__()
+          interactions = SimpleParticleSystem.__interactions__()
 
-        # Conservation
-        Enum.each(interactions, fn interaction ->
-          AII.verify_conservation(interaction, agents)
-        end)
+          # Conservation
+          Enum.each(interactions, fn interaction ->
+            AII.verify_conservation(interaction, agents)
+          end)
 
-        # Dispatch
-        Enum.each(interactions, fn interaction ->
-          AII.dispatch_interaction(interaction)
-        end)
+          # Dispatch
+          Enum.each(interactions, fn interaction ->
+            AII.dispatch_interaction(interaction)
+          end)
 
-        # Code generation
-        Enum.each(interactions, fn interaction ->
-          {:ok, hw} = AII.dispatch_interaction(interaction)
-          AII.generate_code(interaction, hw)
-        end)
-      end
-    },
-    time: 1,
-    memory_time: 0.5,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+          # Code generation
+          Enum.each(interactions, fn interaction ->
+            {:ok, hw} = AII.dispatch_interaction(interaction)
+            AII.generate_code(interaction, hw)
+          end)
+        end
+      },
+      time: 1,
+      memory_time: 0.5,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   # ============================================================================
@@ -253,23 +267,25 @@ defmodule BenchmarkDebug do
 
       particles = test_particles(count)
 
-      Benchee.run(%{
-        "NIF Raw (#{count} particles, 10 steps)" => fn ->
-          ref = AII.NIF.create_particle_system(count + 10)
-          Enum.each(particles, &AII.NIF.add_particle(ref, &1))
-          AII.NIF.run_simulation_batch(ref, 10, 0.01)
-          AII.NIF.destroy_system(ref)
-        end,
-        "Full Pipeline (#{count} particles, 1 step)" => fn ->
-          AII.run_simulation(SimpleParticleSystem, steps: 1, dt: 0.01, particles: particles)
-        end
-      },
-      time: 0.5,
-      memory_time: 0.2,
-      parallel: 1,
-      formatters: [
-        {Benchee.Formatters.Console, extended_statistics: true}
-      ])
+      Benchee.run(
+        %{
+          "NIF Raw (#{count} particles, 10 steps)" => fn ->
+            ref = AII.NIF.create_particle_system(count + 10)
+            Enum.each(particles, &AII.NIF.add_particle(ref, &1))
+            AII.NIF.run_simulation_batch(ref, 10, 0.01)
+            AII.NIF.destroy_system(ref)
+          end,
+          "Full Pipeline (#{count} particles, 1 step)" => fn ->
+            AII.run_simulation(SimpleParticleSystem, steps: 1, dt: 0.01, particles: particles)
+          end
+        },
+        time: 0.5,
+        memory_time: 0.2,
+        parallel: 1,
+        formatters: [
+          {Benchee.Formatters.Console, extended_statistics: true}
+        ]
+      )
     end)
   end
 
@@ -282,17 +298,19 @@ defmodule BenchmarkDebug do
 
     particles = test_particles(50)
 
-    Benchee.run(%{
-      "Memory Usage (50 particles, 100 steps)" => fn ->
-        AII.run_simulation(SimpleParticleSystem, steps: 100, dt: 0.01, particles: particles)
-      end
-    },
-    time: 1,
-    memory_time: 1,
-    parallel: 1,
-    formatters: [
-      {Benchee.Formatters.Console, extended_statistics: true}
-    ])
+    Benchee.run(
+      %{
+        "Memory Usage (50 particles, 100 steps)" => fn ->
+          AII.run_simulation(SimpleParticleSystem, steps: 100, dt: 0.01, particles: particles)
+        end
+      },
+      time: 1,
+      memory_time: 1,
+      parallel: 1,
+      formatters: [
+        {Benchee.Formatters.Console, extended_statistics: true}
+      ]
+    )
   end
 
   # ============================================================================
@@ -330,21 +348,28 @@ defmodule BenchmarkDebug do
   def quick_test do
     IO.puts("⚡ Quick Performance Test")
 
+    # Start cache agents
+    AII.start_cache_agents()
+
     particles = test_particles(10)
 
     # Test NIF speed
-    {time, _} = :timer.tc(fn ->
-      ref = AII.NIF.create_particle_system(20)
-      Enum.each(particles, &AII.NIF.add_particle(ref, &1))
-      AII.NIF.run_simulation_batch(ref, 1000, 0.01)
-      AII.NIF.destroy_system(ref)
-    end)
+    {time, _} =
+      :timer.tc(fn ->
+        ref = AII.NIF.create_particle_system(20)
+        Enum.each(particles, &AII.NIF.add_particle(ref, &1))
+        AII.NIF.run_simulation_batch(ref, 1000, 0.01)
+        AII.NIF.destroy_system(ref)
+      end)
+
     IO.puts("NIF Raw (10 particles, 1000 steps): #{time / 1000} ms")
 
     # Test full pipeline
-    {time2, _} = :timer.tc(fn ->
-      AII.run_simulation(SimpleParticleSystem, steps: 10, dt: 0.01, particles: particles)
-    end)
+    {time2, _} =
+      :timer.tc(fn ->
+        AII.run_simulation(SimpleParticleSystem, steps: 10, dt: 0.01, particles: particles)
+      end)
+
     IO.puts("Full Pipeline (10 particles, 10 steps): #{time2 / 1000} ms")
 
     IO.puts("Ratio: #{time2 / time}x slower (overhead factor)")

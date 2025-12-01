@@ -112,6 +112,9 @@ defmodule AII do
   """
   def run_simulation(system_module, opts \\ []) do
     try do
+      # Start cache agents for code generation and conservation checking
+      start_cache_agents()
+
       _agents = system_module.__agents__()
       hardware = Keyword.get(opts, :hardware, :auto)
       run_simulation_with_hardware(system_module, opts, hardware)

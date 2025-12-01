@@ -396,7 +396,7 @@ defmodule AII.NIF do
             };
         }
 
-        std.debug.print("GPU compute dispatch activated for {} particles, {} steps (GPU backend initialized successfully)\n", .{particle_system.particle_count, steps});
+        // std.debug.print("GPU compute dispatch activated for {} particles, {} steps (GPU backend initialized successfully)\n", .{particle_system.particle_count, steps});
 
         // TODO: Implement full GPU particle simulation
         // For now, we'll still use CPU but indicate GPU is active
@@ -596,7 +596,7 @@ defmodule AII.NIF do
   def get_particles(system_ref) do
     try do
       case :erlang.apply(:aii_nif, :get_particles, [system_ref]) do
-        particles when is_list(particles) -> particles
+        binary when is_binary(binary) -> decode_particles(binary)
         {:error, reason} -> {:error, reason}
       end
     catch
@@ -627,6 +627,24 @@ defmodule AII.NIF do
             []
         end
     end
+  end
+
+  # Decode binary particle data from NIF
+  defp decode_particles(<<>>), do: []
+
+  defp decode_particles(
+         <<px::float-32, py::float-32, pz::float-32, vx::float-32, vy::float-32, vz::float-32,
+           mass::float-32, energy::float-32, id::unsigned-32, rest::binary>>
+       ) do
+    particle = %{
+      position: %{x: px, y: py, z: pz},
+      velocity: %{x: vx, y: vy, z: vz},
+      mass: mass,
+      energy: energy,
+      id: id
+    }
+
+    [particle | decode_particles(rest)]
   end
 
   @doc """
