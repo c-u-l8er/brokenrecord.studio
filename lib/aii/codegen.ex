@@ -357,8 +357,17 @@ defmodule AII.Codegen do
   end
 
   # Generate GLSL compute shader source
-  defp generate_glsl_compute_shader(_interaction) do
-    """
+  defp generate_glsl_compute_shader(interaction) do
+    # Extract interaction type
+    interaction_type =
+      case interaction do
+        %{body: {type, _, _}} -> type
+        %{name: name} -> name
+        _ -> :default
+      end
+
+    # Generate shader based on interaction
+    base_shader = """
     #version 450
     #extension GL_ARB_compute_shader : enable
 
@@ -396,10 +405,36 @@ defmodule AII.Codegen do
         vec3 position = positions[idx];
         vec3 velocity = velocities[idx];
         float mass = masses[idx];
+    """
 
-        // Apply forces (gravity in Y direction)
-        vec3 force = vec3(0.0, -gravity * mass, 0.0);
+    # Add interaction-specific logic
+    specific_logic =
+      case interaction_type do
+        :gravity ->
+          """
+          // Apply gravity force
+          vec3 force = vec3(0.0, -gravity * mass, 0.0);
+          """
 
+        :collision ->
+          """
+          // Collision detection and response
+          vec3 force = vec3(0.0, 0.0, 0.0);
+          // Simple collision with ground plane
+          if (position.y < 0.0) {
+            velocity.y = -velocity.y * 0.8; // Bounce with damping
+            position.y = 0.0;
+          }
+          """
+
+        _ ->
+          """
+          // Default: gravity
+          vec3 force = vec3(0.0, -gravity * mass, 0.0);
+          """
+      end
+
+    integration = """
         // Integrate velocity (F = ma, a = F/m)
         vec3 acceleration = force / mass;
         velocity += acceleration * dt;
@@ -410,8 +445,9 @@ defmodule AII.Codegen do
         // Store updated data
         positions[idx] = position;
         velocities[idx] = velocity;
-    }
     """
+
+    base_shader <> specific_logic <> integration <> "\n    }\n"
   end
 
   # Compile GLSL source to SPIR-V binary
