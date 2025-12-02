@@ -592,24 +592,28 @@
                     </p>
                 </div>
                 <div class="footer-bottom">
-                    <p>&copy; <span id="current-year"></span> brokenrecord.studio. Artificial Interaction Intelligence. Version 2.0.</p>
+                    <p>
+                        &copy;
+                        <span id="current-year"></span> brokenrecord.studio.
+                        Artificial Interaction Intelligence. Version 2.0.
+                    </p>
                 </div>
             </div>
         </footer>
 
-        <div style="background: #000; padding: 2em 0 1em;">
-            <div style="margin: 0 auto; width: 728px;">
+        <div style="background: #000; padding: 2em 0 1em">
+            <div style="margin: 0 auto; width: 728px">
                 <iframe
                     src="https://ampersandboxdesign.com/advertisements/leaderboard-watermark.html"
                     width="728"
                     height="90"
                     frameborder="0"
                     scrolling="no"
-                    style="border:none; overflow:hidden;"
+                    style="border: none; overflow: hidden"
                     title="AmperSandboxDesign Branding Design Agency Advertisement"
                 >
                 </iframe>
-                <div style="text-align: right; color: #ccc; font-size: 0.75em;">
+                <div style="text-align: right; color: #ccc; font-size: 0.75em">
                     ^ADVERTISEMENT
                 </div>
             </div>
@@ -642,12 +646,18 @@
                 "03_zig_runtime.md",
                 "04_hardware_dispatch.md",
                 "05_implementation_roadmap.md",
+                "06_information_conservation_ai_foundations.md",
+                "07_hallucination_free_chatbots.md",
+                "08_program_synthesis_reasoning.md",
+                "09_distributed_real_time_systems.md",
+                "10_agent_based_dijkstra_for_routing.md",
+                "11_gis_fleet_management.md",
+                "PERFORMANCE.md",
                 "accelerator_reference.md",
                 "competitive_battle_card.md",
                 "conservation_types_guide.md",
                 "demo_applications.md",
                 "faq.md",
-                "PERFORMANCE.md",
                 "records_field_service_example.md",
                 "records_implementation_guide.md",
                 "social_media_graphics.md",
@@ -699,7 +709,9 @@
                 for (const doc of docs) {
                     try {
                         console.log(`Loading document: ${doc}`);
-                        const response = await fetch(`docs/${doc}`, { cache: 'no-cache' });
+                        const response = await fetch(`docs/${doc}`, {
+                            cache: "no-cache",
+                        });
                         if (response.ok) {
                             const content = await response.text();
                             allDocsContent[doc] = content;
