@@ -7,10 +7,11 @@ defmodule AII.Types do
   # Conserved wrapper type
   defmodule Conserved do
     @type t(inner) :: %__MODULE__{
-      value: inner,
-      source: atom(),  # Where this value came from
-      tracked: boolean()
-    }
+            value: inner,
+            # Where this value came from
+            source: atom(),
+            tracked: boolean()
+          }
 
     defstruct value: 0, source: :unknown, tracked: true
 
@@ -57,9 +58,39 @@ defmodule AII.Types do
 
     def add({x1, y1, z1}, {x2, y2, z2}), do: {x1 + x2, y1 + y2, z1 + z2}
     def mul({x, y, z}, scalar), do: {x * scalar, y * scalar, z * scalar}
-    def magnitude({x, y, z}), do: :math.sqrt(x*x + y*y + z*z)
+    def magnitude({x, y, z}), do: :math.sqrt(x * x + y * y + z * z)
     def sub({x1, y1, z1}, {x2, y2, z2}), do: {x1 - x2, y1 - y2, z1 - z2}
-    def cross({x1, y1, z1}, {x2, y2, z2}), do: {y1*z2 - z1*y2, z1*x2 - x1*z2, x1*y2 - y1*x2}
-    def dot({x1, y1, z1}, {x2, y2, z2}), do: x1*x2 + y1*y2 + z1*z2
+
+    def cross({x1, y1, z1}, {x2, y2, z2}),
+      do: {y1 * z2 - z1 * y2, z1 * x2 - x1 * z2, x1 * y2 - y1 * x2}
+
+    def dot({x1, y1, z1}, {x2, y2, z2}), do: x1 * x2 + y1 * y2 + z1 * z2
+  end
+
+  defmodule Particle do
+    defstruct [
+      :id,
+      :position,
+      :velocity,
+      :mass,
+      # Conserved<Float>
+      :information,
+      # :atomic_name or :chemic_name
+      :owner,
+      :metadata
+    ]
+  end
+
+  # Exceptions
+  defmodule ConservationViolation do
+    defexception [:message]
+  end
+
+  defmodule ChemicError do
+    defexception [:message]
+  end
+
+  defmodule BionicError do
+    defexception [:message]
   end
 end

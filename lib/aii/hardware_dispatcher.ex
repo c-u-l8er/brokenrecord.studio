@@ -13,19 +13,8 @@ defmodule AII.HardwareDispatcher do
   @type fallback_chain :: [hardware()]
   @type dispatch_result :: {:ok, hardware()} | {:error, term()}
 
-  @doc """
-  Dispatches an interaction to the optimal hardware accelerator.
-
-  ## Parameters
-  - `interaction`: The interaction AST/map to analyze
-  - `fallback`: Fallback strategy (:auto for automatic, or custom chain)
-
-  ## Returns
-  - `{:ok, hardware}` - Selected accelerator
-  - `{:error, reason}` - Dispatch failed
-  """
+  # Interaction dispatch with fallback
   @spec dispatch(map(), :auto | fallback_chain()) :: dispatch_result()
-  def dispatch(interaction, fallback \\ :auto)
 
   def dispatch(interaction, :auto) do
     # Check if interaction has explicit accelerator hint
@@ -66,6 +55,78 @@ defmodule AII.HardwareDispatcher do
   def dispatch(interaction, fallback_chain) when is_list(fallback_chain) do
     chain_dispatch(interaction, fallback_chain)
   end
+
+  def dispatch(atomic_module) do
+    metadata = atomic_module.__atomic_metadata__()
+
+    # Check explicit accelerator hint
+    case metadata.accelerator do
+      :rt_cores -> :rt_cores
+      :tensor_cores -> :tensor_cores
+      :npu -> :npu
+      :cuda_cores -> :cuda_cores
+      nil -> infer_accelerator(metadata)
+    end
+  end
+
+  defp infer_accelerator(metadata) do
+    # Infer from atomic type and operations
+    cond do
+      has_spatial_metadata?(metadata) -> :rt_cores
+      has_matrix_metadata?(metadata) -> :tensor_cores
+      has_learned_metadata?(metadata) -> :npu
+      true -> :cuda_cores
+    end
+  end
+
+  # Metadata-based analysis functions
+  defp has_spatial_metadata?(metadata) do
+    # Check if metadata indicates spatial operations
+    metadata.type in [:spatial, :collision] or
+      Enum.any?(metadata.inputs, fn {_, type} -> type in [:position, :velocity] end)
+  end
+
+  defp has_matrix_metadata?(metadata) do
+    # Check if metadata indicates matrix operations
+    metadata.type in [:matrix, :tensor] or
+      Enum.any?(metadata.inputs, fn {_, type} -> type in [:matrix, :tensor] end)
+  end
+
+  defp has_learned_metadata?(metadata) do
+    # Check if metadata indicates learned models
+    metadata.type in [:neural, :inference] or
+      String.contains?(to_string(metadata.name), "learn") or
+      String.contains?(to_string(metadata.name), "predict")
+  end
+
+  # Generate hardware-specific code
+  def generate_code(atomic_module, accelerator) do
+    case accelerator do
+      :rt_cores ->
+        AII.Codegen.Vulkan.generate_ray_query(atomic_module)
+
+      :tensor_cores ->
+        AII.Codegen.Vulkan.generate_tensor_op(atomic_module)
+
+      :npu ->
+        AII.Codegen.NPU.generate_inference(atomic_module)
+
+      :cuda_cores ->
+        AII.Codegen.CUDA.generate_kernel(atomic_module)
+    end
+  end
+
+  @doc """
+  Dispatches an interaction to the optimal hardware accelerator.
+
+  ## Parameters
+  - `interaction`: The interaction AST/map to analyze
+  - `fallback`: Fallback strategy (:auto for automatic, or custom chain)
+
+  ## Returns
+  - `{:ok, hardware}` - Selected accelerator
+  - `{:error, reason}` - Dispatch failed
+  """
 
   @doc """
   Checks if specific hardware is available on this system.

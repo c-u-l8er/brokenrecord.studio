@@ -75,6 +75,15 @@ defmodule AII do
 
   @simulation_cache_agent __MODULE__.SimulationCache
 
+  defmacro __using__(_opts) do
+    quote do
+      IO.puts("AII.__using__ called")
+      import AII.DSL.Atomic
+      import AII.DSL.Chemic
+      import AII.DSL.Bionic
+    end
+  end
+
   # Expose core submodules for direct access
   def types, do: AII.Types
   def dsl, do: AII.DSL
