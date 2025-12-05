@@ -1,10 +1,10 @@
 defmodule AII.DSL.Chemic do
-  defmacro defchemic(name, opts \\ [], do: block) do
+  defmacro defchemic(name, _opts \\ [], do: block) do
     quote do
       defmodule Chemical.unquote(name) do
         use AII.Chemic
 
-        @chemic_name unquote(name)
+        @chemic_name __MODULE__ |> Atom.to_string() |> String.replace("Elixir.Chemical.", "")
 
         Module.put_attribute(__MODULE__, :element_number, 1)
         Module.put_attribute(__MODULE__, :element_class, :basic)
@@ -60,9 +60,7 @@ defmodule AII.DSL.Chemic do
 
   defmacro composition(do: block) do
     quote do
-      def __composition__ do
-        unquote(block)
-      end
+      unquote(block)
     end
   end
 

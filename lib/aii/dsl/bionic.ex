@@ -1,10 +1,10 @@
 defmodule AII.DSL.Bionic do
-  defmacro defbionic(name, opts \\ [], do: block) do
+  defmacro defbionic(name, _opts \\ [], do: block) do
     quote do
       defmodule Bionical.unquote(name) do
         use AII.Bionic
 
-        @bionic_name unquote(name)
+        @bionic_name __MODULE__ |> Atom.to_string() |> String.replace("Elixir.Bionical.", "")
 
         unquote(block)
 
@@ -23,15 +23,11 @@ defmodule AII.DSL.Bionic do
         end
 
         defp execute_plan(plan, state, inputs, opts, metadata) do
-          IO.puts("Bionic execution plan: #{inspect(plan)}")
-
           Enum.reduce(plan, {state, inputs}, fn node_name, {st, data} ->
-            IO.puts("Executing bionic node: #{node_name}")
             # Execute node (chemic)
             {updated_st, node_outputs} =
               execute_bionic_node(st, data, node_name, opts, metadata)
 
-            IO.puts("Bionic node #{node_name} outputs: #{inspect(node_outputs)}")
             # Update data flow
             updated_data = Map.put(data, node_name, node_outputs)
 
@@ -105,6 +101,8 @@ defmodule AII.DSL.Bionic do
 
         defp extract_chemic_module(mod) when is_atom(mod), do: mod
         defp extract_chemic_module({:chemical, mod}), do: mod
+        defp extract_chemic_module({:vertex, _, [mod]}), do: extract_chemic_module(mod)
+        defp extract_chemic_module({:__aliases__, _, parts}), do: Module.concat(parts)
 
         defp gather_node_inputs(data, _node_config) do
           # For this simple case, assume input is :value
@@ -124,11 +122,9 @@ defmodule AII.DSL.Bionic do
 
         # Extract outputs from final data
         defp extract_bionic_outputs(final_data) do
-          IO.puts("Extracting bionic outputs from final_data: #{inspect(final_data)}")
           # For this simple case, extract result from the process node
-          process_output = final_data[:process]
-          IO.puts("Process output: #{inspect(process_output)}")
-          %{result: process_output[:result]}
+          process_output = final_data[:"Elixir.Process"]
+          %{result: process_output && process_output[:result]}
         end
 
         defp verify_bionic_conservation(inputs, outputs) do
@@ -214,6 +210,12 @@ defmodule AII.DSL.Bionic do
   defmacro outputs(do: block) do
     quote do
       Module.put_attribute(__MODULE__, :outputs, unquote(Macro.escape(block)))
+    end
+  end
+
+  defmacro vertex(module) do
+    quote do
+      unquote(module)
     end
   end
 

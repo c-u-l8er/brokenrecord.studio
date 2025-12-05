@@ -14,7 +14,6 @@ defmodule AII.Examples.AtomicChemicBionicExample do
 
   # Define an atomic: doubles a number
   defatomic Double do
-    atomical(:Double)
     input(:value)
 
     kernel do

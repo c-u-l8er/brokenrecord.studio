@@ -65,15 +65,15 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
 
   test "metadata is generated" do
     atomic_meta = Atomical.TestMultiply.__atomic_metadata__()
-    assert atomic_meta.name == :TestMultiply
+    assert atomic_meta.name == "TestMultiply"
     assert is_list(atomic_meta.inputs)
 
     chemic_meta = Chemical.TestMultiplyTwice.__chemic_metadata__()
-    assert chemic_meta.name == :TestMultiplyTwice
+    assert chemic_meta.name == "TestMultiplyTwice"
     assert is_list(chemic_meta.atomics)
 
     bionic_meta = Bionical.TestBionicMultiply.__bionic_metadata__()
-    assert bionic_meta.name == :TestBionicMultiply
+    assert bionic_meta.name == "TestBionicMultiply"
     assert is_list(bionic_meta.nodes)
   end
 

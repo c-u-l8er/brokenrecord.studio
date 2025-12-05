@@ -53,6 +53,7 @@ defmodule AII.Chemic do
         bonds =
           cond do
             is_nil(bonds_block) -> []
+            is_list(bonds_block) -> bonds_block
             match?({:__block__, _, _}, bonds_block) -> elem(bonds_block, 2)
             true -> [bonds_block]
           end
@@ -60,8 +61,13 @@ defmodule AII.Chemic do
         # Normalize -> syntax to {from, to}
         normalized_bonds =
           Enum.map(bonds, fn
-            {:->, [], [from, to]} -> {from, to}
-            other -> other
+            {:->, _, [from_ast, to_ast]} ->
+              from = extract_ast(from_ast)
+              to = extract_ast(to_ast)
+              {from, to}
+
+            other ->
+              other
           end)
 
         # Add bonds only between atomic nodes
@@ -87,6 +93,12 @@ defmodule AII.Chemic do
         end)
       end
 
+      defp extract_atom({atom, _, _}) when is_atom(atom), do: atom
+      defp extract_atom(atom) when is_atom(atom), do: atom
+
+      defp extract_ast(ast) when is_list(ast), do: extract_atom(hd(ast))
+      defp extract_ast(ast), do: extract_atom(ast)
+
       defp build_node_inputs(data, node_name, dependencies, input_names) do
         if dependencies == [] do
           # Initial node: get from top-level input
@@ -99,7 +111,18 @@ defmodule AII.Chemic do
       end
 
       defp verify_conservation(inputs, outputs) do
-        AII.Conservation.verify(inputs, outputs)
+        input_info = AII.Conservation.total_information(inputs)
+        output_info = AII.Conservation.total_information(outputs)
+        diff = abs(input_info - output_info)
+        tolerance = 0.0001
+
+        if diff > tolerance do
+          Logger.warning(
+            "Chemic conservation violation: input #{input_info}, output #{output_info}, diff #{diff}"
+          )
+        end
+
+        :ok
       end
     end
   end

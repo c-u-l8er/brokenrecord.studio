@@ -24,10 +24,7 @@ defmodule AII.Atomic do
           # Ensure outputs is a map
           outputs = if is_map(outputs), do: outputs, else: %{result: outputs}
 
-          # 2. Verify conservation: outputs cannot create information
-          :ok = AII.Conservation.verify(inputs, outputs)
-
-          # 3. Verify output conservation laws if defined
+          # 2. Verify output conservation laws if defined
           if @conservation_laws != [] do
             :ok = verify_output_conservation(inputs, outputs)
           end

@@ -4,7 +4,9 @@ defmodule AII.DSL.Atomic do
       defmodule Atomical.unquote(name) do
         use AII.Atomic
 
-        Module.put_attribute(__MODULE__, :atomic_number, unquote(opts[:atomic_number] || 1))
+        @atomic_name __MODULE__ |> Atom.to_string() |> String.replace("Elixir.Atomical.", "")
+        @accelerator nil
+
         Module.put_attribute(__MODULE__, :atomic_type, unquote(opts[:type] || :basic))
 
         unquote(block)
@@ -12,7 +14,6 @@ defmodule AII.DSL.Atomic do
         def __atomic_metadata__ do
           %{
             name: @atomic_name,
-            atomic_number: @atomic_number,
             type: @atomic_type,
             inputs: @inputs,
             state_fields: @state_fields,
@@ -44,7 +45,7 @@ defmodule AII.DSL.Atomic do
     end
   end
 
-  defmacro state(name, opts \\ []) do
+  defmacro state(name, _opts \\ []) do
     quote do
       Module.put_attribute(__MODULE__, :state_fields, unquote(name))
     end
