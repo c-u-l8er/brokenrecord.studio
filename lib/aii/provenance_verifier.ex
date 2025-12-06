@@ -1,5 +1,8 @@
 defmodule AII.ProvenanceVerifier do
-  @moduledoc "Verify data provenance instead of strict conservation"
+  @moduledoc """
+  Verify data provenance for information processing pipelines.
+  Ensures all outputs have traceable origins and valid transformation chains.
+  """
 
   require Logger
 
@@ -14,8 +17,8 @@ defmodule AII.ProvenanceVerifier do
     :ok
   end
 
-  defp verify_output_provenance(%AII.Types.Conserved{} = conserved, output_key) do
-    provenance = conserved.provenance
+  defp verify_output_provenance(%AII.Types.Tracked{} = tracked, output_key) do
+    provenance = tracked.provenance
 
     # Must have source
     if provenance.source_id == "" do
@@ -51,7 +54,7 @@ defmodule AII.ProvenanceVerifier do
   defp extract_sources(data) do
     Enum.flat_map(data, fn {_key, value} ->
       case value do
-        %AII.Types.Conserved{provenance: %{source_id: source}} -> [source]
+        %AII.Types.Tracked{provenance: %{source_id: source}} -> [source]
         _ -> []
       end
     end)

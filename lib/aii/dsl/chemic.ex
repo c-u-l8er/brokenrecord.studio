@@ -1,84 +1,63 @@
 defmodule AII.DSL.Chemic do
-  defmacro defchemic(name, _opts \\ [], do: block) do
+  @moduledoc """
+  DSL for composing atomics into pipelines.
+  Focus: Provenance flows through transformations.
+  """
+
+  defmacro defchemic(name, opts \\ [], do: block) do
     quote do
-      defmodule Chemical.unquote(name) do
+      defmodule Module.concat(:Chemic, unquote(name)) do
+        @chemic_name unquote(name)
+
         use AII.Chemic
-
-        @chemic_name __MODULE__ |> Atom.to_string() |> String.replace("Elixir.Chemical.", "")
-
-        Module.put_attribute(__MODULE__, :element_number, 1)
-        Module.put_attribute(__MODULE__, :element_class, :basic)
 
         unquote(block)
 
-        def execute(chemic_state, inputs) do
-          try do
-            metadata = __chemic_metadata__()
-            # 1. Parse bonds into DAG
-            dag = parse_bonds_to_dag(metadata.bonds, metadata.atomics)
-
-            # 2. Topological sort
-            execution_order = topological_sort(dag)
-
-            # 3. Execute each node in order, accumulating data
-            {updated_state, final_data} =
-              Enum.reduce(execution_order, {chemic_state, inputs}, fn node, {state, data} ->
-                {new_state, new_data} = execute_node(state, data, node, metadata.atomics, dag)
-                {new_state, new_data}
-              end)
-
-            # 4. Extract outputs from final data
-            outputs =
-              if execution_order == [],
-                do: %{},
-                else: %{result: final_data[List.last(execution_order)].result}
-
-            # 5. Verify chemic-level provenance
-            AII.ProvenanceVerifier.verify_execution(inputs, outputs)
-
-            {:ok, updated_state, outputs}
-          rescue
-            error ->
-              Logger.error("Error executing chemic #{__MODULE__}: #{inspect(error)}")
-              reraise error, __STACKTRACE__
-          end
-        end
-
-        def __chemic_metadata__ do
-          %{
-            name: @chemic_name,
-            element_number: @element_number,
-            element_class: @element_class,
-            atomics: @atomics,
-            sub_chemics: @sub_chemics,
-            bonds: @bonds
-          }
-        end
+        @before_compile AII.Chemic
       end
     end
   end
 
-  defmacro composition(do: block) do
+  # Declare atomics in chemic
+  defmacro atomic(name, module) do
     quote do
-      unquote(block)
+      Module.put_attribute(__MODULE__, :atomics, %{
+        name: unquote(name),
+        module: unquote(module)
+      })
     end
   end
 
-  defmacro atomic(name, opts \\ []) do
-    quote do
-      Module.put_attribute(__MODULE__, :atomics, {unquote(name), unquote(opts)})
-    end
-  end
-
-  defmacro chemic(name, opts \\ []) do
-    quote do
-      Module.put_attribute(__MODULE__, :sub_chemics, {unquote(name), unquote(opts)})
-    end
-  end
-
+  # Declare bonds (data flow)
   defmacro bonds(do: block) do
     quote do
-      Module.put_attribute(__MODULE__, :bonds, unquote(Macro.escape(block)))
+      Module.put_attribute(__MODULE__, :temp_bonds, [])
+      unquote(block)
+      bonds = Module.get_attribute(__MODULE__, :temp_bonds)
+      Module.put_attribute(__MODULE__, :bonds, bonds)
+    end
+  end
+
+  # Bond syntax: bond(from, to)
+  defmacro bond(from, to) do
+    quote do
+      current = Module.get_attribute(__MODULE__, :temp_bonds) || []
+
+      bond = %{
+        from: unquote(from),
+        to: unquote(to)
+      }
+
+      Module.put_attribute(__MODULE__, :temp_bonds, [bond | current])
+    end
+  end
+
+  # Tracks provenance through entire pipeline
+  defmacro tracks_pipeline_provenance(do: block) do
+    quote do
+      Module.put_attribute(__MODULE__, :pipeline_provenance_check, fn inputs, outputs ->
+        unquote(block)
+      end)
     end
   end
 end

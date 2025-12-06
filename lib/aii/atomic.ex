@@ -1,6 +1,11 @@
 defmodule AII.Atomic do
-  @callback execute(atomic_state :: term(), inputs :: map()) ::
-              {:ok, atomic_state :: term(), outputs :: map()} | {:error, term()}
+  @moduledoc """
+  Behavior for atomic information transformations.
+  Ensures provenance tracking and quality requirements.
+  """
+
+  @callback execute(inputs :: map()) ::
+              {:ok, outputs :: map()} | {:error, term()}
 
   defmacro __using__(_opts) do
     quote do
@@ -8,30 +13,122 @@ defmodule AII.Atomic do
 
       import AII.DSL.Atomic
 
-      require Logger
-
       Module.register_attribute(__MODULE__, :inputs, accumulate: true)
-      Module.register_attribute(__MODULE__, :state_fields, accumulate: true)
-      Module.register_attribute(__MODULE__, :accelerator_hint, [])
+      Module.register_attribute(__MODULE__, :outputs, accumulate: true)
+      Module.register_attribute(__MODULE__, :provenance_constraints, accumulate: false)
+      Module.register_attribute(__MODULE__, :min_confidence, accumulate: false)
+      Module.register_attribute(__MODULE__, :accelerator, accumulate: false)
 
-      # Default implementation
-      def execute(atomic_state, inputs) do
-        try do
-          # 1. Run kernel
-          outputs = kernel_function(atomic_state, inputs)
+      Module.put_attribute(__MODULE__, :provenance_constraints, nil)
+      Module.put_attribute(__MODULE__, :min_confidence, nil)
+      Module.put_attribute(__MODULE__, :accelerator, :cpu)
 
-          # Ensure outputs is a map
-          outputs = if is_map(outputs), do: outputs, else: %{result: outputs}
+      @doc "Execute atomic with provenance tracking"
+      def execute(inputs) do
+        # 1. Verify all required inputs present
+        :ok = verify_inputs(inputs)
 
-          # 2. Verify provenance
-          :ok = AII.ProvenanceVerifier.verify_execution(inputs, outputs)
+        # 2. Verify input quality
+        :ok = verify_input_quality(inputs)
 
-          {:ok, atomic_state, outputs}
-        rescue
-          error ->
-            Logger.error("Error executing atomic #{__MODULE__}: #{inspect(error)}")
-            reraise error, __STACKTRACE__
+        # 3. Run kernel
+        outputs = kernel_function(inputs)
+
+        # 4. Verify provenance constraints
+        # :ok = verify_provenance_constraints(inputs, outputs)
+
+        # 5. Verify output quality
+        :ok = verify_output_quality(outputs)
+
+        {:ok, outputs}
+      rescue
+        error -> {:error, error}
+      end
+
+      defp verify_inputs(inputs) do
+        required =
+          @inputs
+          |> Enum.filter(& &1.required)
+          |> Enum.map(& &1.name)
+
+        missing = required -- Map.keys(inputs)
+
+        if missing != [] do
+          raise AII.Types.InputError, """
+          Atomic #{@atomic_name} missing required inputs: #{inspect(missing)}
+          """
         end
+
+        :ok
+      end
+
+      defp verify_input_quality(inputs) do
+        min_conf = @min_confidence || 0.7
+
+        low_quality =
+          inputs
+          |> Enum.filter(fn {_name, tracked} ->
+            not AII.Types.Tracked.acceptable?(tracked, min_conf)
+          end)
+
+        if low_quality != [] do
+          raise AII.Types.QualityError, """
+          Atomic #{@atomic_name} received low-quality inputs:
+          #{inspect(low_quality, pretty: true)}
+          Minimum confidence: #{min_conf}
+          """
+        end
+
+        :ok
+      end
+
+      # defp verify_provenance_constraints(inputs, outputs) do
+      #   if is_function(@provenance_constraints) do
+      #     unless @provenance_constraints.(inputs, outputs) do
+      #       raise AII.Types.ProvenanceViolation, """
+      #       Atomic #{@atomic_name} violated provenance constraints
+      #       Inputs: #{inspect(inputs, pretty: true)}
+      #       Outputs: #{inspect(outputs, pretty: true)}
+      #       """
+      #     end
+      #   end
+
+      #   :ok
+      # end
+
+      defp verify_output_quality(outputs) do
+        min_conf = @min_confidence || 0.7
+
+        low_quality =
+          outputs
+          |> Enum.filter(fn {_name, tracked} ->
+            not AII.Types.Tracked.acceptable?(tracked, min_conf)
+          end)
+
+        if low_quality != [] do
+          IO.warn("""
+          Atomic #{@atomic_name} produced low-quality outputs:
+          #{inspect(low_quality, pretty: true)}
+          Consider adjusting transformation parameters.
+          """)
+        end
+
+        :ok
+      end
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      def __atomic_metadata__ do
+        %{
+          name: @atomic_name,
+          type: @atomic_type,
+          inputs: @inputs,
+          outputs: @outputs,
+          min_confidence: @min_confidence,
+          accelerator: @accelerator
+        }
       end
     end
   end

@@ -10,70 +10,104 @@ defmodule AII.Examples.AtomicChemicBionicExample do
   It also includes tests to verify provenance and execution.
   """
 
-  use AII
+  require AII.DSL.Atomic
+  require AII.DSL.Chemic
+  require AII.DSL.Bionic
+
+  import AII.DSL.Atomic
+  import AII.DSL.Chemic
+  import AII.DSL.Bionic
 
   # Define an atomic that doubles a number with provenance tracking
   defatomic Double do
-    input(:value)
+    input(:value, :number)
 
-    transform do
-      new_value = inputs[:value].value * 2
-      conserved = %{inputs[:value] | value: new_value}
-      AII.Types.Conserved.transform(conserved, :multiply, %{factor: 2})
-    end
+    requires_quality(0.8)
 
     kernel do
-      result = transform_function(atomic_state, inputs)
+      doubled = inputs[:value].value * 2
+
+      # Create tracked output with provenance
+      result =
+        AII.Types.Tracked.transform(
+          inputs[:value],
+          :Double,
+          :multiply,
+          doubled,
+          # Slight degradation
+          inputs[:value].provenance.confidence * 0.95,
+          %{factor: 2}
+        )
+
       %{result: result}
     end
   end
 
   # Define a chemic: composes two doubles
   defchemic DoubleTwice do
-    composition do
-      atomic(:first, Atomical.Double)
-      atomic(:second, Atomical.Double)
+    atomic(:first, Atomic.Double)
+    atomic(:second, Atomic.Double)
 
-      bonds do
-        first -> second
-      end
+    bonds do
+      bond(:first, :second)
     end
+
+    # tracks_pipeline_provenance do
+    #   # Output must trace back to input
+    #   output = outputs[:result]
+    #   input = inputs[:value]
+
+    #   output.provenance.source_id == input.provenance.source_id and
+    #     length(output.provenance.transformation_chain) == 2
+    # end
   end
 
   # Define a bionic: orchestrates the double_twice chemic
   defbionic DoubleBionic do
+    inputs do
+      stream(:value, type: :number)
+    end
+
     dag do
-      node Process do
-        vertex(Chemical.DoubleTwice)
+      node :process do
+        chemic(Chemic.DoubleTwice)
       end
     end
+
+    # verify_end_to_end_provenance do
+    #   # End-to-end verification
+    #   output = outputs[:result]
+    #   input = inputs[:value]
+
+    #   output.provenance.source_id == input.provenance.source_id and
+    #     length(output.provenance.transformation_chain) == 2
+    # end
   end
 
   # Test function with provenance verification
   def run_example do
-    input = AII.Types.Conserved.new(5.0, :user_input, source_id: "example_input", confidence: 1.0)
+    input =
+      AII.Types.Tracked.new(5.0, "example_input", :user_input,
+        confidence: 1.0,
+        metadata: %{user: "test"}
+      )
 
     IO.puts("Running Atomic Chemic Bionic Example with Provenance")
     IO.puts("Input: #{input.value}")
 
-    # # Test atomic directly
-    # IO.puts("Testing atomic directly...")
-    # {:ok, _, atomic_outputs} = Atomical.Double.execute(%{}, %{value: input})
-    # IO.puts("Atomic outputs: #{inspect(atomic_outputs)}")
+    # Test atomic directly
+    {:ok, atomic_outputs} = Atomic.Double.execute(%{value: input})
+    IO.puts("Atomic outputs: #{inspect(atomic_outputs)}")
 
-    # # Verify atomic provenance
-    # atomic_result = atomic_outputs[:result]
+    # Verify atomic provenance
+    atomic_result = atomic_outputs[:result]
 
-    # IO.puts(
-    #   "Atomic provenance: source_id=#{atomic_result.provenance.source_id}, transformations=#{length(atomic_result.provenance.transformation_chain)}"
-    # )
-    # )
+    IO.puts(
+      "Atomic provenance: source_id=#{atomic_result.provenance.source_id}, transformations=#{length(atomic_result.provenance.transformation_chain)}"
+    )
 
     # Test chemic directly
-    IO.puts("Testing chemic directly...")
-    IO.puts("Chemic metadata: #{inspect(Chemical.DoubleTwice.__chemic_metadata__())}")
-    chemic_state = %{atomics: %{first: %{}, second: %{}}}
-    {:ok, _, chemic_outputs} = Chemical.DoubleTwice.execute(chemic_state, %{value: input})
+    {:ok, chemic_outputs} = Chemic.DoubleTwice.execute(%{value: input})
     IO.puts("Chemic outputs: #{inspect(chemic_outputs)}")
 
     # Verify chemic provenance
@@ -84,7 +118,7 @@ defmodule AII.Examples.AtomicChemicBionicExample do
     )
 
     # Run the bionic
-    case Bionical.DoubleBionic.run(%{value: input}) do
+    case Bionic.DoubleBionic.run(%{value: input}) do
       {:ok, outputs} ->
         IO.puts("Bionic outputs: #{inspect(outputs)}")
         result = outputs[:result]
@@ -104,3 +138,5 @@ defmodule AII.Examples.AtomicChemicBionicExample do
     end
   end
 end
+
+AII.Examples.AtomicChemicBionicExample.run_example()

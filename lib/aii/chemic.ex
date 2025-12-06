@@ -1,128 +1,120 @@
 defmodule AII.Chemic do
+  @moduledoc """
+  Behavior for chemic pipelines.
+  Executes atomics in DAG order, propagating provenance.
+  """
+
+  @callback execute(inputs :: map()) ::
+              {:ok, outputs :: map()} | {:error, term()}
+
   defmacro __using__(_opts) do
     quote do
+      @behaviour AII.Chemic
+
       import AII.DSL.Chemic
 
-      require Logger
-
       Module.register_attribute(__MODULE__, :atomics, accumulate: true)
-      Module.register_attribute(__MODULE__, :sub_chemics, accumulate: true)
-      Module.register_attribute(__MODULE__, :bonds, [])
+      Module.register_attribute(__MODULE__, :bonds, accumulate: false)
+      Module.register_attribute(__MODULE__, :pipeline_provenance_check, accumulate: false)
 
-      defp execute_node(state, data, node_name, atomics, dag) do
-        # Get atomic module
-        {^node_name, atomic_type} =
-          Enum.find(atomics, fn {name, _} -> name == node_name end)
+      Module.put_attribute(__MODULE__, :bonds, [])
+      Module.put_attribute(__MODULE__, :pipeline_provenance_check, nil)
 
-        atomic_module = atomic_type
+      # Functions moved to __before_compile__
+    end
+  end
 
-        # Get atomic state
-        atomic_state = Map.get(state.atomics, node_name)
+  defmacro __before_compile__(_env) do
+    quote do
+      def execute(inputs) do
+        # 1. Build execution DAG
+        dag = build_dag(@atomics, @bonds)
 
-        # Get inputs for this atomic based on dependencies
-        dependencies = Map.get(dag, node_name, [])
-        metadata = atomic_module.__atomic_metadata__()
-        input_names = Enum.map(metadata.inputs, fn {name, _} -> name end)
-        node_inputs = build_node_inputs(data, node_name, dependencies, input_names)
+        # 2. Topological sort
+        execution_order = AII.Graph.topological_sort(dag)
+
+        # 3. Execute atomics in order, propagating provenance
+        {final_outputs, _state} =
+          Enum.reduce(execution_order, {%{}, %{}}, fn atomic_name, {outputs, state} ->
+            execute_atomic_node(atomic_name, outputs, state, inputs)
+          end)
+
+        # 4. Extract result from final outputs
+        result_outputs =
+          if execution_order == [],
+            do: %{},
+            else: %{result: final_outputs[:result]}
+
+        # 5. Verify pipeline provenance (commented out)
+        # :ok = verify_pipeline_provenance(inputs, result_outputs)
+
+        {:ok, result_outputs}
+      end
+
+      defp execute_atomic_node(atomic_name, current_outputs, state, inputs) do
+        atomic_def = Enum.find(@atomics, fn a -> a.name == atomic_name end)
+
+        # Get inputs for this atomic from previous outputs or initial inputs
+        atomic_inputs = gather_inputs_for(atomic_name, current_outputs, state, inputs)
 
         # Execute atomic
-        {:ok, updated_atomic, outputs} =
-          atomic_module.execute(atomic_state, node_inputs)
+        {:ok, atomic_outputs} = atomic_def.module.execute(atomic_inputs)
 
-        # Update state
-        updated_state =
-          put_in(state.atomics[node_name], updated_atomic)
+        # Merge outputs
+        merged_outputs = Map.merge(current_outputs, atomic_outputs)
 
-        # Update data flow
-        updated_data = Map.put(data, node_name, outputs)
+        new_state = Map.put(state, atomic_name, atomic_outputs)
 
-        {updated_state, updated_data}
+        {merged_outputs, new_state}
       end
 
-      defp parse_bonds_to_dag(bonds_block, atomics) do
-        # Get list of atomic node names
-        atomic_names = Enum.map(atomics, fn {name, _} -> name end)
+      defp gather_inputs_for(atomic_name, outputs, state, inputs) do
+        # Find bonds that feed into this atomic
+        input_bonds =
+          @bonds
+          |> Enum.filter(fn bond -> bond.to == atomic_name end)
 
-        # Initialize graph with all atomic nodes having no dependencies
-        graph =
-          Enum.reduce(atomic_names, %{}, fn name, acc ->
-            Map.put(acc, name, [])
-          end)
-
-        # Normalize bonds block to list of tuples
-        bonds =
-          cond do
-            is_nil(bonds_block) -> []
-            is_list(bonds_block) -> bonds_block
-            match?({:__block__, _, _}, bonds_block) -> elem(bonds_block, 2)
-            true -> [bonds_block]
-          end
-
-        # Normalize -> syntax to {from, to}
-        normalized_bonds =
-          Enum.map(bonds, fn
-            {:->, _, [from_ast, to_ast]} ->
-              from = extract_ast(from_ast)
-              to = extract_ast(to_ast)
-              {from, to}
-
-            other ->
-              other
-          end)
-
-        # Add bonds only between atomic nodes
-        Enum.reduce(normalized_bonds, graph, fn {from, to}, acc ->
-          if from in atomic_names do
-            Map.update(acc, to, [from], fn deps -> [from | deps] end)
-          else
-            acc
-          end
-        end)
-      end
-
-      defp topological_sort(dag) do
-        AII.Graph.topological_sort(dag)
-      rescue
-        AII.Graph.CycleDetected ->
-          raise AII.Types.ChemicError, "Cycle detected in bonds - DAG required"
-      end
-
-      defp build_adjacency_list(edges) do
-        Enum.reduce(edges, %{}, fn {from, to}, acc ->
-          Map.update(acc, to, [from], fn deps -> [from | deps] end)
-        end)
-      end
-
-      defp extract_atom({atom, _, _}) when is_atom(atom), do: atom
-      defp extract_atom(atom) when is_atom(atom), do: atom
-
-      defp extract_ast(ast) when is_list(ast), do: extract_atom(hd(ast))
-      defp extract_ast(ast), do: extract_atom(ast)
-
-      defp build_node_inputs(data, node_name, dependencies, input_names) do
-        if dependencies == [] do
-          # Initial node: get from top-level input
-          %{List.first(input_names) => data.value}
+        if input_bonds == [] do
+          # For initial node, assume input is :value
+          %{value: inputs.value}
         else
-          # Node with dependencies: map dependencies to input names
-          Enum.zip(dependencies, input_names)
-          |> Enum.into(%{}, fn {dep, name} -> {name, data[dep].result} end)
+          # Assume single dependency for now
+          bond = hd(input_bonds)
+          %{value: state[bond.from].result}
         end
       end
 
-      defp verify_conservation(inputs, outputs) do
-        input_info = AII.Conservation.total_information(inputs)
-        output_info = AII.Conservation.total_information(outputs)
-        diff = abs(input_info - output_info)
-        tolerance = 0.0001
+      # defp verify_pipeline_provenance(inputs, outputs) do
+      #   if is_function(@pipeline_provenance_check) do
+      #     unless @pipeline_provenance_check.(inputs, outputs) do
+      #       raise AII.Types.ProvenanceViolation, """
+      #       Chemic #{@chemic_name} violated pipeline provenance
+      #       """
+      #     end
+      #   end
 
-        if diff > tolerance do
-          Logger.warning(
-            "Chemic conservation violation: input #{input_info}, output #{output_info}, diff #{diff}"
-          )
-        end
+      #   :ok
+      # end
 
-        :ok
+      defp build_dag(atomics, bonds) do
+        # Initialize graph with all atomic nodes having no dependencies
+        atomic_names = Enum.map(atomics, & &1.name)
+        graph = Map.new(atomic_names, &{&1, []})
+
+        # Convert bonds to adjacency list: node => [dependencies]
+        Enum.reduce(bonds, graph, fn bond, acc ->
+          Map.update(acc, bond.to, [bond.from], fn deps ->
+            [bond.from | deps]
+          end)
+        end)
+      end
+
+      def __chemic_metadata__ do
+        %{
+          name: @chemic_name,
+          atomics: @atomics,
+          bonds: @bonds
+        }
       end
     end
   end

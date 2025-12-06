@@ -1,60 +1,76 @@
 defmodule AII.DSL.Atomic do
+  @moduledoc """
+  DSL for atomic information transformations.
+  Focus: Provenance tracking, not conservation.
+  """
+
   defmacro defatomic(name, opts \\ [], do: block) do
     quote do
-      defmodule Atomical.unquote(name) do
+      defmodule Module.concat(:Atomic, unquote(name)) do
+        @atomic_name unquote(name)
+        @atomic_type unquote(opts[:type] || :transform)
+        @accelerator unquote(opts[:accelerator] || :cpu)
+
         use AII.Atomic
-
-        @atomic_name __MODULE__ |> Atom.to_string() |> String.replace("Elixir.Atomical.", "")
-        @accelerator nil
-
-        Module.put_attribute(__MODULE__, :atomic_type, unquote(opts[:type] || :basic))
 
         unquote(block)
 
-        def __atomic_metadata__ do
-          %{
-            name: @atomic_name,
-            type: @atomic_type,
-            inputs: @inputs,
-            state_fields: @state_fields,
-            accelerator: @accelerator
-          }
-        end
+        @before_compile AII.Atomic
       end
     end
   end
 
-  defmacro atomical(name) do
+  # Input declaration
+  defmacro input(name, type, opts \\ []) do
     quote do
-      @atomic_name unquote(name)
+      Module.put_attribute(__MODULE__, :inputs, %{
+        name: unquote(name),
+        type: unquote(type),
+        required: unquote(Keyword.get(opts, :required, true)),
+        default: unquote(Keyword.get(opts, :default))
+      })
     end
   end
 
+  # Output declaration
+  defmacro output(name, type, opts \\ []) do
+    quote do
+      Module.put_attribute(__MODULE__, :outputs, %{
+        name: unquote(name),
+        type: unquote(type),
+        confidence_degradation: unquote(Keyword.get(opts, :confidence_degradation, 0.0))
+      })
+    end
+  end
+
+  # Provenance constraint
+  defmacro tracks_provenance(do: block) do
+    quote do
+      Module.put_attribute(__MODULE__, :provenance_constraints, fn inputs, outputs ->
+        unquote(block)
+      end)
+    end
+  end
+
+  # Quality constraint
+  defmacro requires_quality(min_confidence) do
+    quote do
+      Module.put_attribute(__MODULE__, :min_confidence, unquote(min_confidence))
+    end
+  end
+
+  # Main transformation kernel
   defmacro kernel(do: block) do
-    {:def, [],
-     [{:kernel_function, [], [{:atomic_state, [], nil}, {:inputs, [], nil}]}, [do: block]]}
-  end
-
-  defmacro input(name, opts \\ []) do
     quote do
-      Module.put_attribute(__MODULE__, :inputs, {unquote(name), unquote(opts)})
+      def kernel_function(var!(inputs)) do
+        # Block has access to: input(:name), output(:name)
+        # Returns: %{output_name: Tracked{value, provenance}}
+        unquote(block)
+      end
     end
   end
 
-  defmacro state(name, _opts \\ []) do
-    quote do
-      Module.put_attribute(__MODULE__, :state_fields, unquote(name))
-    end
-  end
-
-  # Provenance tracking is handled manually in kernel
-  # No conserves macro needed for provenance approach
-
-  defmacro transform(do: block) do
-    {:def, [],
-     [{:transform_function, [], [{:atomic_state, [], nil}, {:inputs, [], nil}]}, [do: block]]}
-  end
-
+  # Accelerator hint
   defmacro accelerator(type) do
     quote do
       @accelerator unquote(type)
