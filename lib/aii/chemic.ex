@@ -15,10 +15,11 @@ defmodule AII.Chemic do
 
       Module.register_attribute(__MODULE__, :atomics, accumulate: true)
       Module.register_attribute(__MODULE__, :bonds, accumulate: false)
-      Module.register_attribute(__MODULE__, :pipeline_provenance_check, accumulate: false)
 
       Module.put_attribute(__MODULE__, :bonds, [])
-      Module.put_attribute(__MODULE__, :pipeline_provenance_check, nil)
+
+      # Default pipeline provenance check - can be overridden
+      def __pipeline_provenance_check__(_inputs, _outputs), do: true
 
       # Functions moved to __before_compile__
     end
@@ -39,16 +40,10 @@ defmodule AII.Chemic do
             execute_atomic_node(atomic_name, outputs, state, inputs)
           end)
 
-        # 4. Extract result from final outputs
-        result_outputs =
-          if execution_order == [],
-            do: %{},
-            else: %{result: final_outputs[:result]}
+        # 4. Verify pipeline provenance
+        :ok = verify_pipeline_provenance(inputs, final_outputs)
 
-        # 5. Verify pipeline provenance (commented out)
-        # :ok = verify_pipeline_provenance(inputs, result_outputs)
-
-        {:ok, result_outputs}
+        {:ok, final_outputs}
       end
 
       defp execute_atomic_node(atomic_name, current_outputs, state, inputs) do
@@ -69,32 +64,37 @@ defmodule AII.Chemic do
       end
 
       defp gather_inputs_for(atomic_name, outputs, state, inputs) do
+        atomic_def = Enum.find(@atomics, fn a -> a.name == atomic_name end)
+        atomic_metadata = atomic_def.module.__atomic_metadata__()
+        required_inputs = Enum.filter(atomic_metadata.inputs, & &1.required)
+
         # Find bonds that feed into this atomic
         input_bonds =
           @bonds
           |> Enum.filter(fn bond -> bond.to == atomic_name end)
 
         if input_bonds == [] do
-          # For initial node, assume input is :value
-          %{value: inputs.value}
+          # For initial node, map chemic inputs to atomic inputs by name
+          Enum.reduce(required_inputs, %{}, fn input_def, acc ->
+            key = input_def.name
+            Map.put(acc, key, inputs[key])
+          end)
         else
-          # Assume single dependency for now
+          # Assume single dependency for now, map to :value
           bond = hd(input_bonds)
           %{value: state[bond.from].result}
         end
       end
 
-      # defp verify_pipeline_provenance(inputs, outputs) do
-      #   if is_function(@pipeline_provenance_check) do
-      #     unless @pipeline_provenance_check.(inputs, outputs) do
-      #       raise AII.Types.ProvenanceViolation, """
-      #       Chemic #{@chemic_name} violated pipeline provenance
-      #       """
-      #     end
-      #   end
+      defp verify_pipeline_provenance(inputs, outputs) do
+        unless __pipeline_provenance_check__(inputs, outputs) do
+          raise AII.Types.ProvenanceViolation, """
+          Chemic #{@chemic_name} violated pipeline provenance
+          """
+        end
 
-      #   :ok
-      # end
+        :ok
+      end
 
       defp build_dag(atomics, bonds) do
         # Initialize graph with all atomic nodes having no dependencies

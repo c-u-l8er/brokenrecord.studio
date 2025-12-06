@@ -16,9 +16,9 @@ defmodule AII.Bionic do
       Module.register_attribute(__MODULE__, :dag_nodes, accumulate: true)
       Module.register_attribute(__MODULE__, :input_streams, accumulate: true)
       Module.register_attribute(__MODULE__, :context_data, accumulate: true)
-      Module.register_attribute(__MODULE__, :end_to_end_verification, accumulate: false)
 
-      Module.put_attribute(__MODULE__, :end_to_end_verification, nil)
+      # Default end-to-end verification - can be overridden
+      def __end_to_end_verification__(_inputs, _outputs), do: true
     end
   end
 
@@ -40,7 +40,7 @@ defmodule AII.Bionic do
           end)
 
         # 4. Verify end-to-end provenance
-        # :ok = verify_end_to_end(inputs, final_outputs)
+        :ok = verify_end_to_end(inputs, final_outputs)
 
         {:ok, final_outputs}
       end
@@ -65,12 +65,10 @@ defmodule AII.Bionic do
       end
 
       defp verify_end_to_end(inputs, outputs) do
-        if is_function(@end_to_end_verification) do
-          unless @end_to_end_verification.(inputs, outputs) do
-            raise AII.Types.ProvenanceViolation, """
-            Bionic #{@bionic_name} failed end-to-end provenance verification
-            """
-          end
+        unless __end_to_end_verification__(inputs, outputs) do
+          raise AII.Types.ProvenanceViolation, """
+          Bionic #{@bionic_name} failed end-to-end provenance verification
+          """
         end
 
         :ok
@@ -88,9 +86,16 @@ defmodule AII.Bionic do
         Map.new(Enum.map(nodes, fn n -> {n.name, []} end))
       end
 
-      defp gather_chemic_inputs(_node_name, outputs, inputs) do
-        # For now, pass bionic inputs as inputs
-        inputs
+      defp gather_chemic_inputs(node_name, outputs, inputs) do
+        # Map bionic inputs to chemic inputs based on node
+        case node_name do
+          :analyze_sentiment ->
+            # TextProcessingPipeline expects :text
+            %{text: inputs.message}
+
+          _ ->
+            inputs
+        end
       end
 
       def __bionic_metadata__ do

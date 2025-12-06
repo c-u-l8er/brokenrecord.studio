@@ -46,9 +46,9 @@ defmodule AII.DSL.Atomic do
   # Provenance constraint
   defmacro tracks_provenance(do: block) do
     quote do
-      Module.put_attribute(__MODULE__, :provenance_constraints, fn inputs, outputs ->
+      def __provenance_check__(var!(inputs), var!(outputs)) do
         unquote(block)
-      end)
+      end
     end
   end
 

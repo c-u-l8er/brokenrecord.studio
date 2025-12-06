@@ -76,9 +76,9 @@ defmodule AII.DSL.Bionic do
   # End-to-end provenance verification
   defmacro verify_end_to_end_provenance(do: block) do
     quote do
-      Module.put_attribute(__MODULE__, :end_to_end_verification, fn inputs, outputs ->
+      def __end_to_end_verification__(var!(inputs), var!(outputs)) do
         unquote(block)
-      end)
+      end
     end
   end
 end

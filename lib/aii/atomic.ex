@@ -15,13 +15,14 @@ defmodule AII.Atomic do
 
       Module.register_attribute(__MODULE__, :inputs, accumulate: true)
       Module.register_attribute(__MODULE__, :outputs, accumulate: true)
-      Module.register_attribute(__MODULE__, :provenance_constraints, accumulate: false)
       Module.register_attribute(__MODULE__, :min_confidence, accumulate: false)
       Module.register_attribute(__MODULE__, :accelerator, accumulate: false)
 
-      Module.put_attribute(__MODULE__, :provenance_constraints, nil)
       Module.put_attribute(__MODULE__, :min_confidence, nil)
       Module.put_attribute(__MODULE__, :accelerator, :cpu)
+
+      # Default provenance check - can be overridden
+      def __provenance_check__(_inputs, _outputs), do: true
 
       @doc "Execute atomic with provenance tracking"
       def execute(inputs) do
@@ -35,7 +36,7 @@ defmodule AII.Atomic do
         outputs = kernel_function(inputs)
 
         # 4. Verify provenance constraints
-        # :ok = verify_provenance_constraints(inputs, outputs)
+        :ok = verify_provenance_constraints(inputs, outputs)
 
         # 5. Verify output quality
         :ok = verify_output_quality(outputs)
@@ -82,19 +83,17 @@ defmodule AII.Atomic do
         :ok
       end
 
-      # defp verify_provenance_constraints(inputs, outputs) do
-      #   if is_function(@provenance_constraints) do
-      #     unless @provenance_constraints.(inputs, outputs) do
-      #       raise AII.Types.ProvenanceViolation, """
-      #       Atomic #{@atomic_name} violated provenance constraints
-      #       Inputs: #{inspect(inputs, pretty: true)}
-      #       Outputs: #{inspect(outputs, pretty: true)}
-      #       """
-      #     end
-      #   end
+      defp verify_provenance_constraints(inputs, outputs) do
+        unless __provenance_check__(inputs, outputs) do
+          raise AII.Types.ProvenanceViolation, """
+          Atomic #{@atomic_name} violated provenance constraints
+          Inputs: #{inspect(inputs, pretty: true)}
+          Outputs: #{inspect(outputs, pretty: true)}
+          """
+        end
 
-      #   :ok
-      # end
+        :ok
+      end
 
       defp verify_output_quality(outputs) do
         min_conf = @min_confidence || 0.7

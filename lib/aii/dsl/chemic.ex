@@ -55,9 +55,9 @@ defmodule AII.DSL.Chemic do
   # Tracks provenance through entire pipeline
   defmacro tracks_pipeline_provenance(do: block) do
     quote do
-      Module.put_attribute(__MODULE__, :pipeline_provenance_check, fn inputs, outputs ->
+      def __pipeline_provenance_check__(var!(inputs), var!(outputs)) do
         unquote(block)
-      end)
+      end
     end
   end
 end
