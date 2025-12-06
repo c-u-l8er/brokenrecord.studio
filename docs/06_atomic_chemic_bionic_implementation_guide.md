@@ -15,43 +15,58 @@
 # lib/aii/types.ex
 
 defmodule AII.Types do
-  # Conserved value wrapper (CRITICAL - foundation of everything)
+  # Conserved value wrapper with provenance tracking
   defmodule Conserved do
     @type t(inner) :: %__MODULE__{
       value: inner,
       source: atom(),
-      tracked: boolean(),
-      lineage: [atom()]  # NEW: Track full provenance chain
+      provenance: Provenance.t(),
+      tracked: boolean()
     }
-    
-    defstruct [:value, :source, :tracked, lineage: []]
-    
-    # ONLY way to create conserved value
-    def new(value, source) when is_atom(source) do
+
+    defstruct [:value, :source, :provenance, :tracked]
+
+    defmodule Provenance do
+      @type t :: %__MODULE__{
+        source_id: String.t(),
+        transformation_chain: [transformation()],
+        timestamp: DateTime.t(),
+        confidence: float()
+      }
+
+      @type transformation ::
+        {:multiplication, factor: number()} |
+        {:addition, added: number()} |
+        {:atomic_transform, atomic_module: atom()} |
+        {:chemic_compose, chemic_module: atom()} |
+        {:bionic_orchestrate, bionic_module: atom()}
+    end
+
+    # Create conserved value with provenance
+    def new(value, source, opts \\ []) do
       %__MODULE__{
         value: value,
         source: source,
-        tracked: true,
-        lineage: [source]
+        provenance: %Provenance{
+          source_id: opts[:source_id] || Atom.to_string(source),
+          transformation_chain: [],
+          timestamp: DateTime.utc_now(),
+          confidence: opts[:confidence] || 1.0
+        },
+        tracked: true
       }
     end
-    
-    # ONLY way to move conserved value
-    def transfer(from, to, amount) do
-      if from.value < amount do
-        {:error, :insufficient_value}
-      else
-        new_from = %{from | 
-          value: from.value - amount,
-          lineage: from.lineage ++ [:transfer]
-        }
-        new_to = %{to | 
-          value: to.value + amount,
-          lineage: to.lineage ++ from.lineage
-        }
-        {:ok, new_from, new_to}
-      end
+
+    # Transform with provenance tracking
+    def transform(conserved, transformation_type, params) do
+      updated_provenance = %Provenance{
+        conserved.provenance |
+        transformation_chain: [transformation_type | conserved.provenance.transformation_chain]
+      }
+
+      %{conserved | provenance: updated_provenance}
     end
+  end
     
     # Check if two conserved values have compatible lineage
     def compatible_lineage?(c1, c2) do
@@ -268,13 +283,10 @@ defmodule AII.DSL.Chemic do
         use AII.Chemic
 
         Module.put_attribute(__MODULE__, :chemic_name, unquote(name))
-        Module.put_attribute(__MODULE__, :element_number, unquote(opts[:element_number]))
-        Module.put_attribute(__MODULE__, :element_class, unquote(opts[:class]))
+        Module.put_attribute(__MODULE__, :element_number, unquote(opts[:element_number] || 1))
+        Module.put_attribute(__MODULE__, :element_class, unquote(opts[:class] || :basic))
 
         unquote(block)
-
-        IO.puts("Chemic DSL: atomics = #{inspect(Module.get_attribute(__MODULE__, :atomics))}")
-        IO.puts("Chemic DSL: bonds = #{inspect(Module.get_attribute(__MODULE__, :bonds))}")
 
         @before_compile AII.Chemic
       end
@@ -361,8 +373,8 @@ defmodule AII.Chemic do
               execute_node(state, data, node)
             end)
         
-        # 4. Verify chemic-level conservation
-        verify_conservation(inputs, outputs)
+        # 4. Verify chemic-level provenance
+        verify_provenance(inputs, outputs)
         
         {:ok, updated_state, outputs}
       end
@@ -599,40 +611,69 @@ end
 
 ---
 
-## 5. Conservation Verification (CRITICAL)
+## 5. Provenance Verification (CRITICAL)
 
 ```elixir
-# lib/aii/conservation.ex
+# lib/aii/provenance_verifier.ex
 
-defmodule AII.Conservation do
-  @tolerance 0.0001
-  
-  # Calculate total information in a data structure
-  def total_information(data) when is_map(data) do
-    data
-    |> Map.values()
-    |> Enum.map(&extract_information/1)
-    |> Enum.sum()
+defmodule AII.ProvenanceVerifier do
+  @moduledoc "Verify data provenance instead of strict conservation"
+
+  require Logger
+
+  def verify_execution(inputs, outputs) do
+    # Check that all outputs have valid provenance chains
+    Enum.each(outputs, fn {key, value} ->
+      verify_output_provenance(value, key)
+    end)
+
+    # Ensure transformations are reasonable
+    verify_transformation_chain(inputs, outputs)
   end
-  
-  defp extract_information(%AII.Types.Conserved{value: v}), do: v
-  defp extract_information(%AII.Types.Particle{information: info}), 
-    do: info.value
-  defp extract_information(list) when is_list(list),
-    do: Enum.sum(Enum.map(list, &extract_information/1))
-  defp extract_information(_), do: 0.0
-  
-  # Verify conservation between two states
-  def verify(before, after_state, opts \\ []) do
-    tolerance = opts[:tolerance] || @tolerance
-    
-    before_info = total_information(before)
-    after_info = total_information(after_state)
-    
-    diff = abs(before_info - after_info)
-    
-    if diff > tolerance do
-      {:error, {:conservation_violated, 
+
+  defp verify_output_provenance(%AII.Types.Conserved{} = conserved, output_key) do
+    provenance = conserved.provenance
+
+    # Must have source
+    if provenance.source_id == "" do
+      raise "Output #{output_key} has no provenance source"
+    end
+
+    # Must have reasonable confidence
+    if provenance.confidence < 0.1 do
+      Logger.warning("Very low confidence output: #{output_key}")
+    end
+
+    # Check transformation chain isn't too long (prevents infinite loops)
+    if length(provenance.transformation_chain) > 100 do
+      raise "Excessive transformation chain in #{output_key}"
+    end
+  end
+
+  defp verify_output_provenance(_other, _output_key), do: :ok
+
+  defp verify_transformation_chain(inputs, outputs) do
+    # Ensure outputs are derived from inputs through valid transformations
+    input_sources = extract_sources(inputs)
+    output_sources = extract_sources(outputs)
+
+    # All output sources should trace back to input sources
+    orphaned_sources = output_sources -- input_sources
+    if orphaned_sources != [] do
+      Logger.warning("Outputs have sources not present in inputs: #{inspect(orphaned_sources)}")
+    end
+  end
+
+  defp extract_sources(data) do
+    Enum.flat_map(data, fn {_key, value} ->
+      case value do
+        %AII.Types.Conserved{provenance: %{source_id: source}} -> [source]
+        _ -> []
+      end
+    end)
+    |> Enum.uniq()
+  end
+end
         before: before_info, 
         after: after_info, 
         diff: diff}}
@@ -775,7 +816,7 @@ end
 
 ---
 
-## 8. Example Usage (For Testing)
+## 8. Example Usage with Provenance (For Testing)
 
 ```elixir
 # test/examples/simple_bionic_test.exs
@@ -785,23 +826,17 @@ defmodule AII.Examples.SimpleBionicTest do
 
   # Define a simple atomic
   defatomic Double do
-    @atomic_number 1
+    input(:value)
+
+    transform do
+      new_value = inputs[:value].value * 2
+      conserved = %{inputs[:value] | value: new_value}
+      AII.Types.Conserved.transform(conserved, :multiply, %{factor: 2})
+    end
 
     kernel do
-      input :value, type: :float
-
-      conserves :information do
-        inputs[:value].info == outputs[:result].info
-      end
-
-      transform do
-        result = Conserved.new(
-          inputs[:value].value * 2,
-          Atomical.Double
-        )
-
-        %{result: result}
-      end
+      result = transform_function(atomic_state, inputs)
+      %{result: result}
     end
   end
 
@@ -845,16 +880,18 @@ defmodule AII.Examples.SimpleBionicTest do
     end
   end
   
-  test "bionic executes with conservation" do
-    input = Conserved.new(5.0, :user_input)
-    
-    {:ok, result} = AII.Bionics.DoubleBionic.run(%{number: input})
-    
+  test "bionic executes with provenance" do
+    input = AII.Types.Conserved.new(5.0, :user_input, source_id: "test_input", confidence: 1.0)
+
+    {:ok, result} = Bionical.DoubleBionic.run(%{number: input})
+
     # 5 * 2 * 2 = 20
     assert result.result.value == 20.0
-    
-    # Conservation verified
-    assert result.result.info == input.info
+
+    # Provenance verified
+    assert result.result.provenance.source_id == "test_input"
+    assert length(result.result.provenance.transformation_chain) == 2  # Two multiplications
+    assert result.result.provenance.confidence >= 0.8
   end
 end
 ```

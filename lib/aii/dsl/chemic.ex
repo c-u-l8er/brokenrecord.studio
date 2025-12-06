@@ -33,8 +33,8 @@ defmodule AII.DSL.Chemic do
                 do: %{},
                 else: %{result: final_data[List.last(execution_order)].result}
 
-            # 5. Verify chemic-level conservation
-            verify_conservation(inputs, outputs)
+            # 5. Verify chemic-level provenance
+            AII.ProvenanceVerifier.verify_execution(inputs, outputs)
 
             {:ok, updated_state, outputs}
           rescue

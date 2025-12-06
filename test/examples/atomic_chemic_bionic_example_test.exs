@@ -2,12 +2,18 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
   use ExUnit.Case
   use AII
 
-  # Define test components using DSL macros without prefixes
+  # Define test components using manual module definition
   defatomic TestMultiply do
     input(:value)
 
+    transform do
+      new_value = inputs[:value].value * 2
+      conserved = %{inputs[:value] | value: new_value}
+      AII.Types.Conserved.transform(conserved, :multiply, %{factor: 2})
+    end
+
     kernel do
-      result = AII.Types.Conserved.new(inputs[:value].value * 1, :computed)
+      result = transform_function(atomic_state, inputs)
       %{result: result}
     end
   end
@@ -38,29 +44,48 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
     assert Code.ensure_loaded?(Bionical.TestBionicMultiply)
   end
 
-  test "atomic execution works" do
-    input = AII.Types.Conserved.new(2.0, :test)
+  test "atomic execution with provenance" do
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
     {:ok, _state, outputs} = Atomical.TestMultiply.execute(%{}, %{value: input})
-    assert outputs[:result].value == 2.0
+    assert outputs[:result].value == 4.0
+
+    # Verify provenance
+    result = outputs[:result]
+    assert result.provenance.source_id == "test_input"
+    assert length(result.provenance.transformation_chain) == 1
+    assert result.provenance.confidence >= 0.9
   end
 
-  test "chemic execution works" do
-    input = AII.Types.Conserved.new(2.0, :test)
+  test "chemic execution with provenance" do
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
     chemic_state = %{atomics: %{first: %{}, second: %{}}}
 
     {:ok, _state, outputs} =
       Chemical.TestMultiplyTwice.execute(chemic_state, %{value: input})
 
-    # 2 * 1 * 1 = 2
-    assert outputs[:result].value == 2.0
+    # 2 * 2 * 2 = 8
+    assert outputs[:result].value == 8.0
+
+    # Verify provenance
+    result = outputs[:result]
+    assert result.provenance.source_id == "test_input"
+    # Two multiplications
+    assert length(result.provenance.transformation_chain) == 2
+    assert result.provenance.confidence >= 0.8
   end
 
-  test "bionic execution with conservation" do
-    input = AII.Types.Conserved.new(2.0, :test)
+  test "bionic execution with provenance" do
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
     {:ok, outputs} = Bionical.TestBionicMultiply.run(%{value: input})
 
     result = outputs[:result]
-    assert result.value == 2.0
+    assert result.value == 8.0
+
+    # Verify provenance
+    assert result.provenance.source_id == "test_input"
+    # Two multiplications
+    assert length(result.provenance.transformation_chain) == 2
+    assert result.provenance.confidence >= 0.8
   end
 
   test "metadata is generated" do
@@ -116,30 +141,32 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
   test "chemic with cycle in bonds raises error" do
     # This would require defining a chemic with cycle, but since topological_sort raises, test indirectly
     # For now, test that valid chemic works, and assume cycle detection works
-    input = AII.Types.Conserved.new(2.0, :test)
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
 
     {:ok, _, outputs} =
       Chemical.TestMultiplyTwice.execute(%{atomics: %{first: %{}, second: %{}}}, %{value: input})
 
-    assert outputs[:result].value == 2.0
+    assert outputs[:result].value == 8.0
   end
 
   test "bionic with invalid node config" do
     # Test with missing chemic
-    input = AII.Types.Conserved.new(2.0, :test)
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
     # Since we can't easily create invalid, test that valid works
     {:ok, outputs} = Bionical.TestBionicMultiply.run(%{value: input})
-    assert outputs[:result].value == 2.0
+    assert outputs[:result].value == 8.0
   end
 
-  test "conservation verification in chemic" do
-    # Since our chemic doesn't change value, it should pass
-    input = AII.Types.Conserved.new(2.0, :test)
+  test "provenance verification in chemic" do
+    # Verify provenance tracking through chemic execution
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
 
     {:ok, _, outputs} =
       Chemical.TestMultiplyTwice.execute(%{atomics: %{first: %{}, second: %{}}}, %{value: input})
 
-    assert AII.Conservation.verify(input, outputs[:result]) == :ok
+    result = outputs[:result]
+    assert result.provenance.source_id == "test_input"
+    assert length(result.provenance.transformation_chain) == 2
   end
 
   test "atomic with missing inputs" do
@@ -158,7 +185,7 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
       end
     end
 
-    input = AII.Types.Conserved.new(0.0, :test)
+    input = AII.Types.Conserved.new(0.0, :test, source_id: "test_input", confidence: 1.0)
     # Should execute without nodes
     {:ok, _, outputs} = Chemical.EmptyChemic.execute(%{}, %{value: input})
     # Since no final_data.second
@@ -180,8 +207,18 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
       end
     end
 
-    # But since edges not implemented for data flow, this might not work
-    # For now, skip or test simple
+    input = AII.Types.Conserved.new(2.0, :test, source_id: "test_input", confidence: 1.0)
+    {:ok, outputs} = Bionical.MultiNodeBionic.run(%{value: input})
+
+    # 2 * 2 * 2 * 2 * 2 = 32
+    assert outputs[:result].value == 32.0
+
+    # Verify provenance
+    result = outputs[:result]
+    assert result.provenance.source_id == "test_input"
+    # Four multiplications
+    assert length(result.provenance.transformation_chain) == 4
+    assert result.provenance.confidence >= 0.6
   end
 
   # Test for parallel branches in chemics
@@ -228,7 +265,7 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
   end
 
   test "parallel branches in chemics" do
-    input = AII.Types.Conserved.new(5.0, :test)
+    input = AII.Types.Conserved.new(5.0, :test, source_id: "test_input", confidence: 1.0)
     chemic_state = %{atomics: %{branch1: %{}, branch2: %{}, combine: %{}}}
 
     {:ok, _state, outputs} =
@@ -258,12 +295,12 @@ defmodule AII.Examples.AtomicChemicBionicExampleTest do
 
   test "conditional execution in atomics" do
     # Test positive case
-    input_pos = AII.Types.Conserved.new(5.0, :test)
+    input_pos = AII.Types.Conserved.new(5.0, :test, source_id: "test_input", confidence: 1.0)
     {:ok, _state, outputs_pos} = Atomical.ConditionalAtomic.execute(%{}, %{value: input_pos})
     assert outputs_pos[:result].value == 5.0
 
     # Test negative case
-    input_neg = AII.Types.Conserved.new(-4.0, :test)
+    input_neg = AII.Types.Conserved.new(-4.0, :test, source_id: "test_input", confidence: 1.0)
     {:ok, _state, outputs_neg} = Atomical.ConditionalAtomic.execute(%{}, %{value: input_neg})
     assert outputs_neg[:result].value == -4.0
   end

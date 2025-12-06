@@ -17,7 +17,6 @@ defmodule AII.DSL.Atomic do
             type: @atomic_type,
             inputs: @inputs,
             state_fields: @state_fields,
-            conservation_laws: @conservation_laws,
             accelerator: @accelerator
           }
         end
@@ -32,11 +31,8 @@ defmodule AII.DSL.Atomic do
   end
 
   defmacro kernel(do: block) do
-    quote do
-      def kernel_function(atomic_state, var!(inputs)) do
-        unquote(block)
-      end
-    end
+    {:def, [],
+     [{:kernel_function, [], [{:atomic_state, [], nil}, {:inputs, [], nil}]}, [do: block]]}
   end
 
   defmacro input(name, opts \\ []) do
@@ -51,22 +47,12 @@ defmodule AII.DSL.Atomic do
     end
   end
 
-  defmacro conserves(quantity, do: block) do
-    quote do
-      Module.put_attribute(
-        __MODULE__,
-        :conservation_laws,
-        {unquote(quantity), unquote(Macro.escape(block))}
-      )
-    end
-  end
+  # Provenance tracking is handled manually in kernel
+  # No conserves macro needed for provenance approach
 
   defmacro transform(do: block) do
-    quote do
-      def transform_function(atomic_state, inputs) do
-        unquote(block)
-      end
-    end
+    {:def, [],
+     [{:transform_function, [], [{:atomic_state, [], nil}, {:inputs, [], nil}]}, [do: block]]}
   end
 
   defmacro accelerator(type) do

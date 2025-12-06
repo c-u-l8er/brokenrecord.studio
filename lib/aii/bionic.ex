@@ -13,6 +13,7 @@ defmodule AII.Bionic do
       Module.register_attribute(__MODULE__, :nodes, accumulate: true)
       Module.register_attribute(__MODULE__, :edges, [])
       Module.register_attribute(__MODULE__, :dag_block, [])
+      Module.register_attribute(__MODULE__, :current_node, [])
     end
   end
 end

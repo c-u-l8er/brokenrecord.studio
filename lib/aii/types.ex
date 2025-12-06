@@ -4,30 +4,68 @@ defmodule AII.Types do
   These types enforce conservation laws at compile time.
   """
 
-  # Conserved wrapper type
+  # Provenance tracking for transformations
+  defmodule Provenance do
+    @type t :: %__MODULE__{
+            source_id: String.t(),
+            transformation_chain: [transformation()],
+            timestamp: DateTime.t(),
+            confidence: float()
+          }
+
+    @type transformation ::
+            {:multiplication, factor: number()}
+            | {:addition, added: number()}
+            | {:atomic_transform, atomic_module: atom()}
+            | {:chemic_compose, chemic_module: atom()}
+            | {:bionic_orchestrate, bionic_module: atom()}
+
+    defstruct source_id: "", transformation_chain: [], timestamp: nil, confidence: 1.0
+  end
+
+  # Conserved value wrapper with provenance tracking
   defmodule Conserved do
     @type t(inner) :: %__MODULE__{
             value: inner,
-            # Where this value came from
             source: atom(),
+            provenance: Provenance.t(),
             tracked: boolean()
           }
 
-    defstruct value: 0, source: :unknown, tracked: true
+    defstruct value: 0, source: :unknown, provenance: nil, tracked: true
 
-    def new(value, source \\ :initial) do
-      %__MODULE__{value: value, source: source, tracked: true}
+    # Create conserved value with provenance
+    def new(value, source, opts \\ []) do
+      %__MODULE__{
+        value: value,
+        source: source,
+        provenance: %AII.Types.Provenance{
+          source_id: opts[:source_id] || Atom.to_string(source),
+          transformation_chain: [],
+          timestamp: DateTime.utc_now(),
+          confidence: opts[:confidence] || 1.0
+        },
+        tracked: true
+      }
     end
 
-    # Can only transfer, never create
-    def transfer(from, to, amount) do
-      if from.value < amount do
-        {:error, :insufficient_value}
-      else
-        new_from = %{from | value: from.value - amount}
-        new_to = %{to | value: to.value + amount}
-        {:ok, new_from, new_to}
-      end
+    # Transform with provenance tracking
+    def transform(conserved, transformation_type, _params) do
+      current_provenance =
+        conserved.provenance ||
+          %AII.Types.Provenance{
+            source_id: Atom.to_string(conserved.source),
+            transformation_chain: [],
+            timestamp: DateTime.utc_now(),
+            confidence: 1.0
+          }
+
+      updated_provenance = %{
+        current_provenance
+        | transformation_chain: [transformation_type | current_provenance.transformation_chain]
+      }
+
+      %{conserved | provenance: updated_provenance}
     end
   end
 
